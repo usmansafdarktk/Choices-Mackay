@@ -788,7 +788,7 @@
 <script>
 // ── Apps Script Web App URL ───────────────────────────────────────────────────
 // Replace with your deployed Apps Script Web App URL
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwugui2SwfcMrbQQqCyGr9Jq0Y0BNi_Xksd6cWSH-DGTHSj0WO5t8HZIfOUfmhQfISMMQ/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwD9CTBpL7lgu-dmvDrC4pKu5zO3JiPaDn-f8yi0evkhEhm_471gGvi7psJdGl1yAfBoQ/exec';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let sameAddress = true;
@@ -1082,17 +1082,34 @@ async function submitForm() {
   const payload = buildPayload();
 
   try {
-    // Apps Script requires no-cors mode — we can't read the response
-    // but the submission goes through. We show success after a delay.
-    await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload),
-    });
+    // Use hidden iframe form POST to avoid CORS issues with Apps Script
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = APPS_SCRIPT_URL;
+    form.target = 'hidden_iframe';
 
+    const input = document.createElement('input');
+    input.type  = 'hidden';
+    input.name  = 'data';
+    input.value = JSON.stringify(payload);
+    form.appendChild(input);
+    document.body.appendChild(form);
+
+    let iframe = document.getElementById('hidden_iframe');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.name = 'hidden_iframe';
+      iframe.id   = 'hidden_iframe';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+    }
+
+    form.submit();
+    document.body.removeChild(form);
+
+    // Wait then show success
+    await new Promise(r => setTimeout(r, 3000));
     document.getElementById('loadingOverlay').classList.remove('show');
-    // Since no-cors returns opaque response, assume success
     document.querySelector('#page3 .card:first-child').style.display = 'none';
     document.getElementById('successCard').style.display = 'block';
 
