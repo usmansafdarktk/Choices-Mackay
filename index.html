@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Choices Flooring Mackay — Customer Registration</title>
+<title>Choices Flooring Mackay — Let's Get You Set Up</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -37,7 +37,7 @@
   /* Header */
   .header {
     background: var(--charcoal);
-    padding: 32px 40px;
+    padding: 36px 40px 32px;
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -47,11 +47,8 @@
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     background: repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 40px,
-      rgba(196,151,58,0.04) 40px,
-      rgba(196,151,58,0.04) 80px
+      45deg, transparent, transparent 40px,
+      rgba(196,151,58,0.04) 40px, rgba(196,151,58,0.04) 80px
     );
   }
   .header-inner { position: relative; z-index: 1; }
@@ -77,12 +74,19 @@
     color: var(--light);
     margin-top: 10px;
     font-weight: 300;
+    line-height: 1.6;
+  }
+  .header-note {
+    font-size: 12px;
+    color: rgba(196,151,58,0.7);
+    margin-top: 6px;
+    font-weight: 300;
+    font-style: italic;
   }
   .accent-line {
-    width: 48px;
-    height: 2px;
+    width: 48px; height: 2px;
     background: var(--accent);
-    margin: 20px auto 0;
+    margin: 18px auto 0;
   }
 
   /* Progress bar */
@@ -95,7 +99,6 @@
     margin: 0 auto;
     display: flex;
     align-items: center;
-    gap: 0;
   }
   .step {
     display: flex;
@@ -115,31 +118,19 @@
     z-index: 0;
   }
   .step.active:not(:last-child)::after,
-  .step.done:not(:last-child)::after {
-    background: var(--accent);
-  }
+  .step.done:not(:last-child)::after { background: var(--accent); }
   .step-dot {
-    width: 28px;
-    height: 28px;
+    width: 28px; height: 28px;
     border-radius: 50%;
     border: 1px solid rgba(255,255,255,0.2);
     background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500;
     color: rgba(255,255,255,0.3);
-    position: relative;
-    z-index: 1;
+    position: relative; z-index: 1;
     transition: all 0.3s;
   }
-  .step.active .step-dot {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: #fff;
-  }
-  .step.done .step-dot {
+  .step.active .step-dot, .step.done .step-dot {
     border-color: var(--accent);
     background: var(--accent);
     color: #fff;
@@ -170,7 +161,7 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Section cards */
+  /* Cards */
   .card {
     background: var(--section-bg);
     border: 1px solid var(--border);
@@ -195,8 +186,7 @@
   }
   .card-number {
     position: absolute;
-    top: 36px;
-    right: 40px;
+    top: 36px; right: 40px;
     font-family: 'Cormorant Garamond', serif;
     font-size: 48px;
     font-weight: 300;
@@ -205,7 +195,7 @@
     user-select: none;
   }
 
-  /* Field groups */
+  /* Fields */
   .field-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -214,12 +204,8 @@
   }
   .field-row.single { grid-template-columns: 1fr; }
   .field-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
 
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
   label {
     font-size: 11px;
     font-weight: 500;
@@ -260,9 +246,7 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(196,151,58,0.08);
   }
-  input.error, select.error {
-    border-color: var(--error);
-  }
+  input.error, select.error { border-color: var(--error); }
   select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23A8A8A8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
@@ -270,14 +254,22 @@
     padding-right: 36px;
     cursor: pointer;
   }
-  .field-error {
-    font-size: 11px;
-    color: var(--error);
-    display: none;
+  select:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: #f0f0f0;
   }
+  .field-error { font-size: 11px; color: var(--error); display: none; }
   .field-error.show { display: block; }
 
-  /* Address autocomplete */
+  /* Phone hint */
+  .field-hint {
+    font-size: 11px;
+    color: var(--light);
+    font-weight: 300;
+  }
+
+  /* Address */
   .address-wrap { position: relative; }
   .pac-container {
     border-radius: 2px !important;
@@ -296,7 +288,7 @@
   .pac-icon { display: none !important; }
   .pac-item-query { font-weight: 500 !important; }
 
-  /* Divider */
+  /* Dividers & section labels */
   .divider {
     border: none;
     border-top: 1px solid var(--border);
@@ -308,7 +300,7 @@
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--accent);
-    margin-bottom: 20px;
+    margin-bottom: 6px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -319,8 +311,14 @@
     height: 1px;
     background: var(--accent-light);
   }
+  .section-sub {
+    font-size: 12px;
+    color: var(--light);
+    margin-bottom: 20px;
+    font-weight: 300;
+  }
 
-  /* Type selector (Individual/Company) */
+  /* Type selector */
   .type-selector {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -337,32 +335,11 @@
     background: var(--input-bg);
   }
   .type-option:hover { border-color: var(--accent); }
-  .type-option.selected {
-    border-color: var(--accent);
-    background: var(--accent-light);
-  }
-  .type-option input[type="radio"] {
-    position: absolute;
-    opacity: 0;
-    width: 0; height: 0;
-  }
-  .type-option-icon {
-    font-size: 24px;
-    margin-bottom: 8px;
-    display: block;
-  }
-  .type-option-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--charcoal);
-    display: block;
-    margin-bottom: 2px;
-  }
-  .type-option-desc {
-    font-size: 12px;
-    color: var(--light);
-    display: block;
-  }
+  .type-option.selected { border-color: var(--accent); background: var(--accent-light); }
+  .type-option input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+  .type-option-icon { font-size: 24px; margin-bottom: 8px; display: block; }
+  .type-option-title { font-size: 14px; font-weight: 500; color: var(--charcoal); display: block; margin-bottom: 4px; }
+  .type-option-desc { font-size: 12px; color: var(--light); display: block; line-height: 1.4; }
   .type-option.selected .type-option-title { color: #8B6220; }
 
   /* Same address toggle */
@@ -377,8 +354,7 @@
     cursor: pointer;
   }
   .toggle {
-    width: 40px;
-    height: 22px;
+    width: 40px; height: 22px;
     background: var(--border);
     border-radius: 11px;
     position: relative;
@@ -389,31 +365,52 @@
   .toggle::after {
     content: '';
     position: absolute;
-    width: 16px;
-    height: 16px;
+    width: 16px; height: 16px;
     border-radius: 50%;
     background: #fff;
-    top: 3px;
-    left: 3px;
+    top: 3px; left: 3px;
     transition: transform 0.2s;
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
   }
   .toggle.on::after { transform: translateX(18px); }
-  .toggle-text {
+  .toggle-text { font-size: 13px; color: var(--charcoal); font-weight: 400; }
+
+  /* Salesperson section */
+  .salesperson-section { margin-top: 4px; }
+
+  /* I'm not sure checkbox */
+  .unsure-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    cursor: pointer;
+    width: fit-content;
+  }
+  .unsure-check input[type="checkbox"] {
+    width: 16px; height: 16px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-appearance: auto;
+    appearance: auto;
+  }
+  .unsure-check-text {
     font-size: 13px;
-    color: var(--charcoal);
-    font-weight: 400;
+    color: var(--mid);
+    font-weight: 300;
+    text-transform: none;
+    letter-spacing: 0;
   }
 
-  /* Salesperson dropdown styled */
-  .salesperson-wrap { margin-bottom: 28px; }
-
-  /* Navigation buttons */
+  /* Nav buttons */
   .nav-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 8px;
+    margin-top: 28px;
   }
   .btn {
     height: 48px;
@@ -428,10 +425,7 @@
     cursor: pointer;
     transition: all 0.2s;
   }
-  .btn-primary {
-    background: var(--charcoal);
-    color: #fff;
-  }
+  .btn-primary { background: var(--charcoal); color: #fff; }
   .btn-primary:hover { background: #333; }
   .btn-secondary {
     background: transparent;
@@ -447,69 +441,64 @@
     font-size: 13px;
   }
   .btn-submit:hover { background: #B8882E; }
-  .btn-submit:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
-  /* Success state */
-  .success-card {
-    text-align: center;
-    padding: 60px 40px;
-  }
+  /* Success */
+  .success-card { text-align: center; padding: 60px 40px; }
   .success-icon {
-    width: 64px;
-    height: 64px;
+    width: 72px; height: 72px;
     border-radius: 50%;
     background: var(--accent-light);
     border: 1px solid var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     margin: 0 auto 24px;
-    font-size: 28px;
+    font-size: 32px;
   }
   .success-title {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 400;
     color: var(--charcoal);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
   }
-  .success-text {
-    font-size: 14px;
+  .success-text { font-size: 14px; color: var(--mid); line-height: 1.7; margin-bottom: 28px; }
+  .btn-start-again {
+    display: inline-block;
+    height: 44px;
+    padding: 0 32px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: transparent;
     color: var(--mid);
-    line-height: 1.6;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
   }
+  .btn-start-again:hover { border-color: var(--accent); color: var(--accent); }
 
   /* Loading overlay */
   .loading-overlay {
     display: none;
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background: rgba(28,28,28,0.6);
     z-index: 1000;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 20px;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 20px;
   }
   .loading-overlay.show { display: flex; }
   .spinner {
-    width: 40px;
-    height: 40px;
+    width: 40px; height: 40px;
     border: 2px solid rgba(255,255,255,0.2);
     border-top-color: var(--accent);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-text {
-    color: #fff;
-    font-size: 14px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
+  .loading-text { color: #fff; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; }
 
   /* Responsive */
   @media (max-width: 600px) {
@@ -519,6 +508,7 @@
     .card-number { display: none; }
     .field-row { grid-template-columns: 1fr; }
     .field-row.triple { grid-template-columns: 1fr 1fr; }
+    .type-selector { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -528,8 +518,9 @@
 <div class="header">
   <div class="header-inner">
     <div class="header-eyebrow">Choices Flooring Mackay</div>
-    <h1>Customer Registration</h1>
-    <p class="header-sub">Please complete all required fields to create your account</p>
+    <h1>Let's Get You Set Up</h1>
+    <p class="header-sub">We just need a few details before we get started on your project.</p>
+    <p class="header-note">Please ensure the details you provide match exactly how you'd like them to appear on your order and invoice.</p>
     <div class="accent-line"></div>
   </div>
 </div>
@@ -545,18 +536,106 @@
 
 <div class="form-container">
 
-  <!-- PAGE 1: Salesperson + Type + Personal Details -->
+  <!-- PAGE 1: Type → Contact Details → Salesperson (last) -->
   <div class="page active" id="page1">
     <div class="card">
       <div class="card-number">01</div>
       <div class="card-title">Your Details</div>
-      <div class="card-subtitle">Tell us about yourself and who you're working with</div>
+      <div class="card-subtitle">How should we contact you throughout your project?</div>
 
-      <div class="salesperson-wrap">
+      <!-- Who is this project for? -->
+      <div class="section-label">Who is this project for?</div>
+      <div class="type-selector" style="margin-top: 16px;">
+        <label class="type-option selected" id="opt-individual">
+          <input type="radio" name="custType" value="Individual" checked>
+          <span class="type-option-icon">🏠</span>
+          <span class="type-option-title">My Home</span>
+          <span class="type-option-desc">A personal residential project.</span>
+        </label>
+        <label class="type-option" id="opt-company">
+          <input type="radio" name="custType" value="Company">
+          <span class="type-option-icon">🏢</span>
+          <span class="type-option-title">My Business</span>
+          <span class="type-option-desc">I'll need a tax invoice in a business name.</span>
+        </label>
+      </div>
+
+      <!-- How Can We Reach You? -->
+      <div class="section-label">How Can We Reach You?</div>
+      <p class="section-sub">So we can keep in touch throughout your project.</p>
+
+      <!-- Individual (My Home) fields -->
+      <div id="individual-fields">
+        <div class="field-row">
+          <div class="field">
+            <label>First Name <span class="req">*</span></label>
+            <input type="text" id="first_name" placeholder="Jane">
+            <span class="field-error" id="err-first_name">Required</span>
+          </div>
+          <div class="field">
+            <label>Surname <span class="req">*</span></label>
+            <input type="text" id="surname" placeholder="Smith">
+            <span class="field-error" id="err-surname">Required</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Mobile Phone <span class="req">*</span></label>
+            <input type="tel" id="phone" placeholder="0400 000 000" oninput="formatMobilePhone(this)" maxlength="12">
+            <span class="field-hint">Format: 0400 000 000</span>
+            <span class="field-error" id="err-phone">Required</span>
+          </div>
+          <div class="field">
+            <label>Email <span class="req">*</span></label>
+            <input type="email" id="email" placeholder="jane@example.com">
+            <span class="field-error" id="err-email">Required</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Company (My Business) fields -->
+      <div id="company-fields" style="display:none">
+        <div class="field-row single">
+          <div class="field">
+            <label>Company Name <span class="req">*</span></label>
+            <input type="text" id="company_name" placeholder="Acme Pty Ltd">
+            <span class="field-error" id="err-company_name">Required</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Business Phone <span class="opt">(at least one phone required)</span></label>
+            <input type="tel" id="company_phone" placeholder="07 4942 0700" oninput="formatBusinessPhone(this)" maxlength="12">
+            <span class="field-hint">Format: 07 4942 0700</span>
+            <span class="field-error" id="err-company_phone">Please provide at least one phone number</span>
+          </div>
+          <div class="field">
+            <label>Mobile Phone</label>
+            <input type="tel" id="company_mobile" placeholder="0400 000 000" oninput="formatMobilePhone(this)" maxlength="12">
+            <span class="field-hint">Format: 0400 000 000</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Email <span class="req">*</span></label>
+            <input type="email" id="company_email" placeholder="info@company.com.au">
+            <span class="field-error" id="err-company_email">Required</span>
+          </div>
+          <div class="field">
+            <label>ABN <span class="opt">(optional)</span></label>
+            <input type="text" id="abn" placeholder="XX XXX XXX XXX">
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Salesperson — moved to last question on Page 1 -->
+      <div class="salesperson-section">
         <div class="field">
-          <label>Salesperson <span class="req">*</span></label>
+          <label>Which Choices Flooring consultant have you been speaking with? <span class="req">*</span></label>
           <select id="salesperson">
-            <option value="">Select your salesperson</option>
+            <option value="">Select your consultant</option>
             <option>Ali Johnson</option>
             <option>Brigitte Martell</option>
             <option>Charlotte Mathison</option>
@@ -575,85 +654,11 @@
             <option>Shay Paton</option>
             <option>Sophie Jones</option>
           </select>
-          <span class="field-error" id="err-salesperson">Please select your salesperson</span>
-        </div>
-      </div>
-
-      <hr class="divider">
-
-      <div class="section-label">Registration Type</div>
-
-      <div class="type-selector">
-        <label class="type-option selected" id="opt-individual">
-          <input type="radio" name="custType" value="Individual" checked>
-          <span class="type-option-icon">👤</span>
-          <span class="type-option-title">Individual</span>
-          <span class="type-option-desc">Personal residential customer</span>
-        </label>
-        <label class="type-option" id="opt-company">
-          <input type="radio" name="custType" value="Company">
-          <span class="type-option-icon">🏢</span>
-          <span class="type-option-title">Company</span>
-          <span class="type-option-desc">Business or commercial account</span>
-        </label>
-      </div>
-
-      <!-- Individual fields -->
-      <div id="individual-fields">
-        <div class="section-label">Contact Information</div>
-        <div class="field-row">
-          <div class="field">
-            <label>First Name <span class="req">*</span></label>
-            <input type="text" id="first_name" placeholder="Jane">
-            <span class="field-error" id="err-first_name">Required</span>
-          </div>
-          <div class="field">
-            <label>Surname <span class="req">*</span></label>
-            <input type="text" id="surname" placeholder="Smith">
-            <span class="field-error" id="err-surname">Required</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label>Phone <span class="req">*</span></label>
-            <input type="tel" id="phone" placeholder="04XX XXX XXX">
-            <span class="field-error" id="err-phone">Required</span>
-          </div>
-          <div class="field">
-            <label>Email <span class="req">*</span></label>
-            <input type="email" id="email" placeholder="jane@example.com">
-            <span class="field-error" id="err-email">Required</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Company fields -->
-      <div id="company-fields" style="display:none">
-        <div class="section-label">Company Information</div>
-        <div class="field-row single">
-          <div class="field">
-            <label>Company Name <span class="req">*</span></label>
-            <input type="text" id="company_name" placeholder="Acme Pty Ltd">
-            <span class="field-error" id="err-company_name">Required</span>
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label>Phone <span class="req">*</span></label>
-            <input type="tel" id="company_phone" placeholder="07XX XXX XXX">
-            <span class="field-error" id="err-company_phone">Required</span>
-          </div>
-          <div class="field">
-            <label>Email <span class="req">*</span></label>
-            <input type="email" id="company_email" placeholder="info@company.com.au">
-            <span class="field-error" id="err-company_email">Required</span>
-          </div>
-        </div>
-        <div class="field-row single">
-          <div class="field">
-            <label>ABN <span class="opt">(optional)</span></label>
-            <input type="text" id="abn" placeholder="XX XXX XXX XXX">
-          </div>
+          <span class="field-error" id="err-salesperson">Please select your consultant or check "I'm not sure"</span>
+          <label class="unsure-check">
+            <input type="checkbox" id="salesperson_unsure" onchange="toggleSalespersonUnsure(this)">
+            <span class="unsure-check-text">I'm not sure</span>
+          </label>
         </div>
       </div>
 
@@ -664,21 +669,22 @@
     </div>
   </div>
 
-  <!-- PAGE 2: Addresses -->
+  <!-- PAGE 2: Address -->
   <div class="page" id="page2">
     <div class="card">
       <div class="card-number">02</div>
-      <div class="card-title">Addresses</div>
-      <div class="card-subtitle">Where should we send invoices, and where will flooring be installed?</div>
+      <div class="card-title">Address</div>
+      <div class="card-subtitle">Where is your project taking place?</div>
 
-      <div class="section-label">Billing Address</div>
-      <div class="field-row single">
+      <!-- Project Address (was Billing Address — same BOS field: bill_to) -->
+      <div class="section-label">Project Address</div>
+      <div class="field-row single" style="margin-top: 16px;">
         <div class="field">
           <label>Search Address <span class="req">*</span></label>
           <div class="address-wrap">
             <input type="text" id="billing_search" placeholder="Start typing your address…" autocomplete="off">
           </div>
-          <span class="field-error" id="err-billing">Please enter a billing address</span>
+          <span class="field-error" id="err-billing">Please enter your project address</span>
         </div>
       </div>
       <div class="field-row single" id="billing-manual" style="display:none">
@@ -688,36 +694,29 @@
         </div>
       </div>
       <div class="field-row triple" id="billing-details" style="display:none">
-        <div class="field">
-          <label>Suburb</label>
-          <input type="text" id="billing_suburb" readonly>
-        </div>
-        <div class="field">
-          <label>State</label>
-          <input type="text" id="billing_state" readonly>
-        </div>
-        <div class="field">
-          <label>Postcode</label>
-          <input type="text" id="billing_postcode" readonly>
-        </div>
+        <div class="field"><label>Suburb</label><input type="text" id="billing_suburb" readonly></div>
+        <div class="field"><label>State</label><input type="text" id="billing_state" readonly></div>
+        <div class="field"><label>Postcode</label><input type="text" id="billing_postcode" readonly></div>
       </div>
 
       <hr class="divider">
 
+      <!-- Toggle: Billing same as Project (was "Installation same as Billing") -->
       <div class="toggle-wrap" id="sameAddressToggle" onclick="toggleSameAddress()">
         <div class="toggle on" id="sameToggle"></div>
-        <span class="toggle-text">Installation address is the same as billing address</span>
+        <span class="toggle-text">Billing Address is the same as the Project Address</span>
       </div>
 
+      <!-- Billing Address (was Installation Address — same BOS field: ship_to) -->
       <div id="installation-section" style="display:none">
-        <div class="section-label">Installation Address</div>
-        <div class="field-row single">
+        <div class="section-label">Billing Address</div>
+        <div class="field-row single" style="margin-top: 16px;">
           <div class="field">
             <label>Search Address <span class="req">*</span></label>
             <div class="address-wrap">
-              <input type="text" id="install_search" placeholder="Start typing your address…" autocomplete="off">
+              <input type="text" id="install_search" placeholder="Start typing your billing address…" autocomplete="off">
             </div>
-            <span class="field-error" id="err-install">Please enter an installation address</span>
+            <span class="field-error" id="err-install">Please enter your billing address</span>
           </div>
         </div>
         <div class="field-row single" id="install-manual" style="display:none">
@@ -727,18 +726,9 @@
           </div>
         </div>
         <div class="field-row triple" id="install-details" style="display:none">
-          <div class="field">
-            <label>Suburb</label>
-            <input type="text" id="install_suburb" readonly>
-          </div>
-          <div class="field">
-            <label>State</label>
-            <input type="text" id="install_state" readonly>
-          </div>
-          <div class="field">
-            <label>Postcode</label>
-            <input type="text" id="install_postcode" readonly>
-          </div>
+          <div class="field"><label>Suburb</label><input type="text" id="install_suburb" readonly></div>
+          <div class="field"><label>State</label><input type="text" id="install_state" readonly></div>
+          <div class="field"><label>Postcode</label><input type="text" id="install_postcode" readonly></div>
         </div>
       </div>
 
@@ -749,12 +739,12 @@
     </div>
   </div>
 
-  <!-- PAGE 3: Review + Submit -->
+  <!-- PAGE 3: Review & Submit -->
   <div class="page" id="page3">
-    <div class="card">
+    <div class="card" id="reviewCard">
       <div class="card-number">03</div>
-      <div class="card-title">Review & Submit</div>
-      <div class="card-subtitle">Please confirm your details before submitting</div>
+      <div class="card-title">One Last Check</div>
+      <div class="card-subtitle">Have a quick look over your details and hit confirm when you're ready.</div>
 
       <div id="review-content"></div>
 
@@ -762,15 +752,16 @@
 
       <div class="nav-row">
         <button class="btn btn-secondary" onclick="goToPage(2)">← Back</button>
-        <button class="btn btn-submit" id="submitBtn" onclick="submitForm()">Submit Registration</button>
+        <button class="btn btn-submit" id="submitBtn" onclick="submitForm()">Confirm &amp; Submit</button>
       </div>
     </div>
 
     <!-- Success -->
     <div class="card success-card" id="successCard" style="display:none">
       <div class="success-icon">✓</div>
-      <div class="success-title">Thank You!</div>
-      <p class="success-text">Your registration has been received.<br>We'll be in touch with you shortly.</p>
+      <div class="success-title">You're All Set!</div>
+      <p class="success-text">We've got your details and your consultant will be in touch soon to get your project moving.</p>
+      <button class="btn-start-again" onclick="resetForm()">Start Again</button>
     </div>
   </div>
 
@@ -786,21 +777,54 @@
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAoNsyQgBmWfg6sfvChUvbI81F1-emWXdI&libraries=places,marker&v=beta&callback=initAutocomplete"></script>
 
 <script>
-// ── Apps Script Web App URL ───────────────────────────────────────────────────
-// Replace with your deployed Apps Script Web App URL
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbymDj_nrzXD1atr5fIxik7ZMTdh7C8UAtu2nYTkz__ENC3hi9Cfn7QfrNxDnOR3KWJfYA/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsmujFvs4Lq3-xkITZ53nNRqLYShDZ82UUq0yW-RzoPA7ZskIvxHGfJvHMpZKq1CdEBQ/exec';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let sameAddress = true;
 let billingFilled = false;
 let installFilled = false;
 
+// ── Phone formatters ──────────────────────────────────────────────────────────
+// Mobile: XXXX XXX XXX (e.g. 0400 000 000)
+function formatMobilePhone(input) {
+  let val = input.value.replace(/\D/g, '').substring(0, 10);
+  if (val.length > 7)      val = val.slice(0,4) + ' ' + val.slice(4,7) + ' ' + val.slice(7);
+  else if (val.length > 4) val = val.slice(0,4) + ' ' + val.slice(4);
+  input.value = val;
+}
+
+// Business: XX XXXX XXXX (e.g. 07 4942 0700)
+function formatBusinessPhone(input) {
+  let val = input.value.replace(/\D/g, '').substring(0, 10);
+  if (val.length > 6)      val = val.slice(0,2) + ' ' + val.slice(2,6) + ' ' + val.slice(6);
+  else if (val.length > 2) val = val.slice(0,2) + ' ' + val.slice(2);
+  input.value = val;
+}
+
+// ── Salesperson "I'm not sure" ────────────────────────────────────────────────
+function toggleSalespersonUnsure(checkbox) {
+  const select = document.getElementById('salesperson');
+  if (checkbox.checked) {
+    select.disabled = true;
+    select.value = '';
+    document.getElementById('err-salesperson').classList.remove('show');
+    select.classList.remove('error');
+  } else {
+    select.disabled = false;
+  }
+}
+
+function getSalespersonValue() {
+  if (document.getElementById('salesperson_unsure').checked) return "I'm not sure";
+  return document.getElementById('salesperson').value;
+}
+
 // ── Type toggle ───────────────────────────────────────────────────────────────
 document.querySelectorAll('input[name="custType"]').forEach(radio => {
   radio.addEventListener('change', function() {
     const isCompany = this.value === 'Company';
     document.getElementById('individual-fields').style.display = isCompany ? 'none' : 'block';
-    document.getElementById('company-fields').style.display = isCompany ? 'block' : 'none';
+    document.getElementById('company-fields').style.display   = isCompany ? 'block' : 'none';
     document.getElementById('opt-individual').classList.toggle('selected', !isCompany);
     document.getElementById('opt-company').classList.toggle('selected', isCompany);
   });
@@ -820,33 +844,24 @@ function toggleSameAddress() {
   document.getElementById('installation-section').style.display = sameAddress ? 'none' : 'block';
 }
 
-// ── Google Places Autocomplete (new PlaceAutocompleteElement API) ─────────────
+// ── Google Places Autocomplete ────────────────────────────────────────────────
 function initAutocomplete() {
   setupAutocomplete('billing_search', {
-    address1: 'billing_address1',
-    suburb: 'billing_suburb',
-    state: 'billing_state',
-    postcode: 'billing_postcode',
-    manualRow: 'billing-manual',
-    detailsRow: 'billing-details',
+    address1: 'billing_address1', suburb: 'billing_suburb',
+    state: 'billing_state', postcode: 'billing_postcode',
+    manualRow: 'billing-manual', detailsRow: 'billing-details',
     filled: () => { billingFilled = true; }
   });
-
   setupAutocomplete('install_search', {
-    address1: 'install_address1',
-    suburb: 'install_suburb',
-    state: 'install_state',
-    postcode: 'install_postcode',
-    manualRow: 'install-manual',
-    detailsRow: 'install-details',
+    address1: 'install_address1', suburb: 'install_suburb',
+    state: 'install_state', postcode: 'install_postcode',
+    manualRow: 'install-manual', detailsRow: 'install-details',
     filled: () => { installFilled = true; }
   });
 }
 
 function setupAutocomplete(inputId, fields) {
   const input = document.getElementById(inputId);
-
-  // Try new PlaceAutocompleteElement first, fall back to legacy Autocomplete
   if (google.maps.places.Autocomplete) {
     const ac = new google.maps.places.Autocomplete(input, {
       componentRestrictions: { country: 'au' },
@@ -859,8 +874,6 @@ function setupAutocomplete(inputId, fields) {
       applyAddressComponents(place.address_components, fields);
     });
   } else {
-    // Fallback: manual input if API unavailable
-    input.placeholder = 'Enter street address (e.g. 123 Main St)';
     input.addEventListener('blur', () => {
       if (input.value.trim()) {
         document.getElementById(fields.address1).value = input.value.trim();
@@ -874,8 +887,7 @@ function setupAutocomplete(inputId, fields) {
 
 function applyAddressComponents(components, fields) {
   let streetNumber = '', route = '', suburb = '', state = '', postcode = '';
-  const stateMap = { 'NSW': 'NSW', 'VIC': 'Vic', 'QLD': 'Qld', 'SA': 'SA', 'WA': 'WA', 'TAS': 'Tas', 'NT': 'NT', 'ACT': 'ACT' };
-
+  const stateMap = { 'NSW':'NSW','VIC':'Vic','QLD':'Qld','SA':'SA','WA':'WA','TAS':'Tas','NT':'NT','ACT':'ACT' };
   components.forEach(c => {
     if (c.types.includes('street_number')) streetNumber = c.long_name;
     if (c.types.includes('route')) route = c.long_name;
@@ -883,18 +895,17 @@ function applyAddressComponents(components, fields) {
     if (c.types.includes('administrative_area_level_1')) state = stateMap[c.short_name] || c.short_name;
     if (c.types.includes('postal_code')) postcode = c.long_name;
   });
-
   const address1 = [streetNumber, route].filter(Boolean).join(' ');
   document.getElementById(fields.address1).value = address1;
-  document.getElementById(fields.suburb).value = suburb;
-  document.getElementById(fields.state).value = state;
+  document.getElementById(fields.suburb).value   = suburb;
+  document.getElementById(fields.state).value    = state;
   document.getElementById(fields.postcode).value = postcode;
-  document.getElementById(fields.manualRow).style.display = 'block';
+  document.getElementById(fields.manualRow).style.display  = 'block';
   document.getElementById(fields.detailsRow).style.display = 'grid';
   fields.filled();
 }
 
-// ── Progress steps ────────────────────────────────────────────────────────────
+// ── Progress ──────────────────────────────────────────────────────────────────
 function setProgress(active) {
   document.querySelectorAll('.step').forEach((s, i) => {
     const n = i + 1;
@@ -913,41 +924,40 @@ function goToPage(n) {
 }
 
 function showError(id, show) {
-  const el = document.getElementById('err-' + id);
+  const el    = document.getElementById('err-' + id);
   const input = document.getElementById(id);
   if (el) el.classList.toggle('show', show);
   if (input) input.classList.toggle('error', show);
 }
-
 function clearError(id) { showError(id, false); }
 
 function goToPage2() {
   const isCompany = document.querySelector('input[name="custType"]:checked').value === 'Company';
   let valid = true;
 
-  // Validate salesperson
-  if (!document.getElementById('salesperson').value) {
-    showError('salesperson', true); valid = false;
-  } else clearError('salesperson');
-
   if (isCompany) {
-    ['company_name','company_phone','company_email'].forEach(id => {
-      if (!document.getElementById(id).value.trim()) { showError(id, true); valid = false; }
-      else clearError(id);
-    });
+    if (!document.getElementById('company_name').value.trim()) { showError('company_name', true); valid = false; } else clearError('company_name');
+    const bp = document.getElementById('company_phone').value.trim();
+    const mp = document.getElementById('company_mobile').value.trim();
+    if (!bp && !mp) { showError('company_phone', true); valid = false; } else clearError('company_phone');
+    if (!document.getElementById('company_email').value.trim()) { showError('company_email', true); valid = false; } else clearError('company_email');
   } else {
     ['first_name','surname','phone','email'].forEach(id => {
-      if (!document.getElementById(id).value.trim()) { showError(id, true); valid = false; }
-      else clearError(id);
+      if (!document.getElementById(id).value.trim()) { showError(id, true); valid = false; } else clearError(id);
     });
   }
+
+  // Validate salesperson (last field)
+  const unsure = document.getElementById('salesperson_unsure').checked;
+  if (!unsure && !document.getElementById('salesperson').value) {
+    showError('salesperson', true); valid = false;
+  } else clearError('salesperson');
 
   if (valid) goToPage(2);
 }
 
 function goToPage3() {
   let valid = true;
-
   if (!billingFilled) {
     document.getElementById('err-billing').classList.add('show');
     document.getElementById('billing_search').classList.add('error');
@@ -956,7 +966,6 @@ function goToPage3() {
     document.getElementById('err-billing').classList.remove('show');
     document.getElementById('billing_search').classList.remove('error');
   }
-
   if (!sameAddress && !installFilled) {
     document.getElementById('err-install').classList.add('show');
     document.getElementById('install_search').classList.add('error');
@@ -964,63 +973,42 @@ function goToPage3() {
   } else {
     document.getElementById('err-install').classList.remove('show');
   }
-
-  if (valid) {
-    buildReview();
-    goToPage(3);
-  }
+  if (valid) { buildReview(); goToPage(3); }
 }
 
 // ── Review builder ────────────────────────────────────────────────────────────
+function reviewSection(title, content) {
+  return `<div style="margin-bottom:20px">
+    <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;font-weight:500">${title}</div>
+    <div style="font-size:14px;color:var(--charcoal);line-height:1.8">${content}</div>
+  </div>`;
+}
+
 function buildReview() {
   const isCompany = document.querySelector('input[name="custType"]:checked').value === 'Company';
-  const sp = document.getElementById('salesperson').value;
-
-  let html = `<div style="margin-bottom:20px">
-    <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-weight:500">Salesperson</div>
-    <div style="font-size:14px;color:var(--charcoal)">${sp}</div>
-  </div>`;
+  const sp = getSalespersonValue();
+  let html = '';
 
   if (isCompany) {
-    html += `<div style="margin-bottom:20px">
-      <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-weight:500">Company Details</div>
-      <div style="font-size:14px;color:var(--charcoal);line-height:1.8">
-        <strong>${document.getElementById('company_name').value}</strong><br>
-        ${document.getElementById('company_phone').value}<br>
-        ${document.getElementById('company_email').value}
-        ${document.getElementById('abn').value ? '<br>ABN: ' + document.getElementById('abn').value : ''}
-      </div>
-    </div>`;
+    const bp = document.getElementById('company_phone').value;
+    const mp = document.getElementById('company_mobile').value;
+    const phoneDisplay = [bp && `Business: ${bp}`, mp && `Mobile: ${mp}`].filter(Boolean).join('<br>');
+    html += reviewSection('My Business', `<strong>${document.getElementById('company_name').value}</strong><br>${phoneDisplay}<br>${document.getElementById('company_email').value}${document.getElementById('abn').value ? '<br>ABN: ' + document.getElementById('abn').value : ''}`);
   } else {
-    html += `<div style="margin-bottom:20px">
-      <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-weight:500">Contact Details</div>
-      <div style="font-size:14px;color:var(--charcoal);line-height:1.8">
-        <strong>${document.getElementById('first_name').value} ${document.getElementById('surname').value}</strong><br>
-        ${document.getElementById('phone').value}<br>
-        ${document.getElementById('email').value}
-      </div>
-    </div>`;
+    html += reviewSection('My Details', `<strong>${document.getElementById('first_name').value} ${document.getElementById('surname').value}</strong><br>${document.getElementById('phone').value}<br>${document.getElementById('email').value}`);
   }
 
-  const billAddr = `${document.getElementById('billing_address1').value}, ${document.getElementById('billing_suburb').value} ${document.getElementById('billing_state').value} ${document.getElementById('billing_postcode').value}`;
-
-  html += `<div style="margin-bottom:20px">
-    <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-weight:500">Billing Address</div>
-    <div style="font-size:14px;color:var(--charcoal)">${billAddr}</div>
-  </div>`;
+  const projAddr = `${document.getElementById('billing_address1').value}, ${document.getElementById('billing_suburb').value} ${document.getElementById('billing_state').value} ${document.getElementById('billing_postcode').value}`;
+  html += reviewSection('Project Address', projAddr);
 
   if (sameAddress) {
-    html += `<div style="margin-bottom:8px">
-      <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-weight:500">Installation Address</div>
-      <div style="font-size:14px;color:var(--mid)">Same as billing address</div>
-    </div>`;
+    html += reviewSection('Billing Address', `<span style="color:var(--mid)">Same as project address</span>`);
   } else {
-    const instAddr = `${document.getElementById('install_address1').value}, ${document.getElementById('install_suburb').value} ${document.getElementById('install_state').value} ${document.getElementById('install_postcode').value}`;
-    html += `<div style="margin-bottom:8px">
-      <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-weight:500">Installation Address</div>
-      <div style="font-size:14px;color:var(--charcoal)">${instAddr}</div>
-    </div>`;
+    const billAddr = `${document.getElementById('install_address1').value}, ${document.getElementById('install_suburb').value} ${document.getElementById('install_state').value} ${document.getElementById('install_postcode').value}`;
+    html += reviewSection('Billing Address', billAddr);
   }
+
+  html += reviewSection('Choices Flooring Consultant Assisting Me', sp === "I'm not sure" ? `<span style="color:var(--mid)">I'm not sure — the team will follow up</span>` : sp);
 
   document.getElementById('review-content').innerHTML = html;
 }
@@ -1028,6 +1016,7 @@ function buildReview() {
 // ── Build payload ─────────────────────────────────────────────────────────────
 function buildPayload() {
   const isCompany = document.querySelector('input[name="custType"]:checked').value === 'Company';
+  const sp = getSalespersonValue();
 
   const billTo = {
     address1: document.getElementById('billing_address1').value,
@@ -1035,40 +1024,36 @@ function buildPayload() {
     state:    document.getElementById('billing_state').value,
     postcode: document.getElementById('billing_postcode').value,
   };
-
-  let shipTo;
-  if (sameAddress) {
-    shipTo = { ...billTo };
-  } else {
-    shipTo = {
-      address1: document.getElementById('install_address1').value,
-      suburb:   document.getElementById('install_suburb').value,
-      state:    document.getElementById('install_state').value,
-      postcode: document.getElementById('install_postcode').value,
-    };
-  }
+  const shipTo = sameAddress ? { ...billTo } : {
+    address1: document.getElementById('install_address1').value,
+    suburb:   document.getElementById('install_suburb').value,
+    state:    document.getElementById('install_state').value,
+    postcode: document.getElementById('install_postcode').value,
+  };
 
   if (isCompany) {
+    const bp = document.getElementById('company_phone').value.trim();
+    const mp = document.getElementById('company_mobile').value.trim();
     return {
       type:         'Company',
       company_name: document.getElementById('company_name').value,
-      phone:        document.getElementById('company_phone').value,
+      phone:        bp || mp,   // business phone preferred, mobile as fallback
       email:        document.getElementById('company_email').value,
       abn:          document.getElementById('abn').value,
-      salesperson:  document.getElementById('salesperson').value,
+      salesperson:  sp,
       bill_to:      billTo,
       ship_to:      shipTo,
     };
   } else {
     return {
-      type:       'Individual',
-      first_name: document.getElementById('first_name').value,
-      surname:    document.getElementById('surname').value,
-      phone:      document.getElementById('phone').value,
-      email:      document.getElementById('email').value,
-      salesperson: document.getElementById('salesperson').value,
-      bill_to:    billTo,
-      ship_to:    shipTo,
+      type:        'Individual',
+      first_name:  document.getElementById('first_name').value,
+      surname:     document.getElementById('surname').value,
+      phone:       document.getElementById('phone').value,
+      email:       document.getElementById('email').value,
+      salesperson: sp,
+      bill_to:     billTo,
+      ship_to:     shipTo,
     };
   }
 }
@@ -1082,7 +1067,6 @@ async function submitForm() {
   const payload = buildPayload();
 
   try {
-    // Use hidden iframe form POST to avoid CORS issues with Apps Script
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = APPS_SCRIPT_URL;
@@ -1107,17 +1091,59 @@ async function submitForm() {
     form.submit();
     document.body.removeChild(form);
 
-    // Wait then show success
     await new Promise(r => setTimeout(r, 3000));
     document.getElementById('loadingOverlay').classList.remove('show');
-    document.querySelector('#page3 .card:first-child').style.display = 'none';
+    document.getElementById('reviewCard').style.display = 'none';
     document.getElementById('successCard').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
   } catch(err) {
     document.getElementById('loadingOverlay').classList.remove('show');
     alert('Submission failed. Please check your connection and try again.');
     btn.disabled = false;
   }
+}
+
+// ── Reset form ────────────────────────────────────────────────────────────────
+function resetForm() {
+  // Clear all text/email/tel inputs
+  document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"]').forEach(el => {
+    el.value = '';
+    el.classList.remove('error');
+  });
+  document.querySelectorAll('select').forEach(el => {
+    el.value = '';
+    el.classList.remove('error');
+    el.disabled = false;
+  });
+
+  // Reset checkbox
+  document.getElementById('salesperson_unsure').checked = false;
+
+  // Reset address state
+  sameAddress = true;
+  billingFilled = false;
+  installFilled = false;
+  document.getElementById('sameToggle').classList.add('on');
+  document.getElementById('installation-section').style.display = 'none';
+  ['billing-manual','billing-details','install-manual','install-details'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+
+  // Reset to "My Home"
+  const indRadio = document.querySelector('input[name="custType"][value="Individual"]');
+  indRadio.checked = true;
+  indRadio.dispatchEvent(new Event('change'));
+
+  // Clear all validation errors
+  document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
+
+  // Show review card, hide success
+  document.getElementById('reviewCard').style.display = 'block';
+  document.getElementById('successCard').style.display = 'none';
+  document.getElementById('submitBtn').disabled = false;
+
+  goToPage(1);
 }
 </script>
 </body>
