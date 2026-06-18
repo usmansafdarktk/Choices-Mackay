@@ -498,6 +498,26 @@
   }
   .btn-start-again:hover { border-color: var(--brand); color: var(--brand); }
 
+  /* ── reCAPTCHA wrapper ─────────────────────────────────────────────────────────── */
+  .captcha-wrap { margin-bottom: 24px; }
+  .captcha-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-bottom: 10px;
+    display: block;
+  }
+  .captcha-error {
+    font-size: 11px;
+    color: var(--error);
+    display: none;
+    font-weight: 500;
+    margin-top: 8px;
+  }
+  .captcha-error.show { display: block; }
+
   /* ── Loading overlay ────────────────────────────────────── */
   .loading-overlay {
     display: none;
@@ -684,6 +704,13 @@
         </div>
       </div>
 
+      <!-- reCAPTCHA -->
+      <div class="captcha-wrap">
+        <span class="captcha-label">Security Check</span>
+        <div class="g-recaptcha" data-sitekey="6LfcwCYtAAAAAOh0O5VvXO8E0LK6Nf-yfSjv8LA7"></div>
+        <span class="captcha-error" id="captchaError">Please complete the security check to continue</span>
+      </div>
+
       <div class="nav-row">
         <div></div>
         <button class="btn btn-primary" onclick="goToPage2()">Continue →</button>
@@ -796,7 +823,7 @@
 </div>
 
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBmLFPPR2BNhesg2DlSm79DMP4IGQswoNMqoyEhpiB7nQysXDlGPoWNh_KDvinhyQYrQ/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1kcubQL87CXavi0gkc8vVn73Wnjg2x45IFoV6KtGCm4K-Y-413cjbzbiVGyosO4QDMA/exec';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let sameAddress = true;
@@ -972,6 +999,14 @@ function goToPage2() {
     showError('salesperson', true); valid = false;
   } else clearError('salesperson');
 
+  // Validate captcha
+  if (!grecaptcha.getResponse()) {
+    document.getElementById('captchaError').classList.add('show');
+    valid = false;
+  } else {
+    document.getElementById('captchaError').classList.remove('show');
+  }
+
   if (valid) goToPage(2);
 }
 
@@ -1056,12 +1091,13 @@ function buildPayload() {
     return {
       type:         'Company',
       company_name: document.getElementById('company_name').value,
-      phone:        bp || mp,   // business phone preferred, mobile as fallback
+      phone:        bp || mp,
       email:        document.getElementById('company_email').value,
       abn:          document.getElementById('abn').value,
       salesperson:  sp,
       bill_to:      billTo,
       ship_to:      shipTo,
+      recaptchaToken: grecaptcha.getResponse(),
     };
   } else {
     return {
@@ -1073,9 +1109,11 @@ function buildPayload() {
       salesperson: sp,
       bill_to:     billTo,
       ship_to:     shipTo,
+      recaptchaToken: grecaptcha.getResponse(),
     };
   }
 }
+
 
 // ── Submit ────────────────────────────────────────────────────────────────────
 async function submitForm() {
@@ -1162,6 +1200,10 @@ function resetForm() {
   document.getElementById('successCard').style.display = 'none';
   document.getElementById('submitBtn').disabled = false;
 
+  // Reset captcha
+  if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
+  document.getElementById('captchaError').classList.remove('show');
+
   goToPage(1);
 }
 
@@ -1169,6 +1211,8 @@ function resetForm() {
 window.initAutocomplete = initAutocomplete;
 </script>
 
+<!-- Google reCAPTCHA v2 -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <!-- Google Maps Places API — loaded AFTER initAutocomplete is defined to avoid a callback race -->
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAoNsyQgBmWfg6sfvChUvbI81F1-emWXdI&libraries=places,marker&v=beta&callback=initAutocomplete"></script>
 </body>

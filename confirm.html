@@ -223,6 +223,26 @@
     .btn-grid { gap: 8px; }
     .opt-btn { padding: 9px 14px; font-size: 12px; }
   }
+
+  /* ── Slider Captcha ────────────────────────────────────────────────── */
+  .captcha-wrap { margin-bottom: 24px; }
+  .captcha-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-bottom: 10px;
+    display: block;
+  }
+  .captcha-error {
+    font-size: 11px;
+    color: var(--error);
+    display: none;
+    font-weight: 500;
+    margin-top: 8px;
+  }
+  .captcha-error.show { display: block; }
 </style>
 </head>
 <body>
@@ -251,6 +271,16 @@
   </div>
 
   <div id="mainForm" style="display:none">
+
+    <!-- reCAPTCHA -->
+    <div class="summary-card">
+      <div class="captcha-wrap" style="margin-bottom:0">
+        <span class="captcha-label">Security Check</span>
+        <div class="g-recaptcha" data-sitekey="6LfcwCYtAAAAAOh0O5VvXO8E0LK6Nf-yfSjv8LA7"></div>
+        <span class="captcha-error" id="captchaError">Please complete the security check to submit</span>
+      </div>
+    </div>
+
     <div class="summary-card">
       <div class="summary-title">Customer Details</div>
       <div class="summary-grid" id="summaryGrid"></div>
@@ -302,7 +332,7 @@
 </div>
 
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBmLFPPR2BNhesg2DlSm79DMP4IGQswoNMqoyEhpiB7nQysXDlGPoWNh_KDvinhyQYrQ/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1kcubQL87CXavi0gkc8vVn73Wnjg2x45IFoV6KtGCm4K-Y-413cjbzbiVGyosO4QDMA/exec';
 let selectedPayment = null;
 let selectedType    = null;
 let customerToken   = null;
@@ -360,6 +390,12 @@ function submitEntry() {
   let valid = true;
   if (!selectedPayment) { document.getElementById('err-payment').classList.add('show'); valid = false; }
   if (!selectedType)    { document.getElementById('err-type').classList.add('show');    valid = false; }
+  if (!grecaptcha.getResponse()) {
+    document.getElementById('captchaError').classList.add('show');
+    valid = false;
+  } else {
+    document.getElementById('captchaError').classList.remove('show');
+  }
   if (!valid) return;
 
   const btn = document.getElementById('submitBtn');
@@ -372,12 +408,13 @@ function submitEntry() {
     mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({
-      action:       'completeCompany',
-      token:        customerToken,
-      paymentTerms: selectedPayment,
-      customerType: selectedType,
+      action:         'completeCompany',
+      token:          customerToken,
+      paymentTerms:   selectedPayment,
+      customerType:   selectedType,
+      recaptchaToken: grecaptcha.getResponse(),
     }),
-  }).catch(() => {}); // no-cors response is opaque — errors can't be read anyway
+  }).catch(() => {});
 
   const name = customerData ? customerData.company_name : 'Customer';
   document.getElementById('successText').textContent =
@@ -392,6 +429,10 @@ function showState(state) {
   document.getElementById('stateSuccess').style.display = state === 'success' ? 'block' : 'none';
   document.getElementById('stateError').style.display   = state === 'error'   ? 'block' : 'none';
 }
+
 </script>
+
+<!-- Google reCAPTCHA v2 -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </body>
 </html>
