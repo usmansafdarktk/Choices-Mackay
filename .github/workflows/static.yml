@@ -46,7 +46,29 @@ jobs:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
           test -n "$GOOGLE_MAPS_API_KEY" || { echo "Missing GitHub secret: GOOGLE_MAPS_API_KEY"; exit 1; }
-          perl -0pi -e 's/__GOOGLE_MAPS_API_KEY__/$ENV{GOOGLE_MAPS_API_KEY}/g' index.html
+          node -e "
+          const fs = require('fs');
+          const path = 'index.html';
+          let html = fs.readFileSync(path, 'utf8');
+          if (!html.includes('__GOOGLE_MAPS_API_KEY__')) {
+            console.log('Placeholder not found — already replaced, skipping.');
+            process.exit(0);
+          }
+          const key = process.env.GOOGLE_MAPS_API_KEY;
+          if (!key || key.trim() === '') {
+            console.error('FATAL: GOOGLE_MAPS_API_KEY is empty or whitespace.');
+            process.exit(1);
+          }
+          const before = html;
+          html = html.split('__GOOGLE_MAPS_API_KEY__').join(key);
+          fs.writeFileSync(path, html, 'utf8');
+          if (html.includes('__GOOGLE_MAPS_API_KEY__')) {
+            console.error('FATAL: Placeholder still present after replacement!');
+            process.exit(1);
+          }
+          const count = before.split('__GOOGLE_MAPS_API_KEY__').length - 1;
+          console.log('Replaced ' + count + ' occurrence(s) of __GOOGLE_MAPS_API_KEY__');
+          "
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
