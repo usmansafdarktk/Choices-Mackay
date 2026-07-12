@@ -498,7 +498,7 @@
   }
   .btn-start-again:hover { border-color: var(--brand); color: var(--brand); }
 
-  /* ── reCAPTCHA wrapper ─────────────────────────────────────────────────────────── */
+  /* ── reCAPTCHA wrapper (DISABLED — to be re-enabled after testing) ───────────────
   .captcha-wrap { margin-bottom: 24px; }
   .captcha-label {
     font-size: 11px;
@@ -517,6 +517,7 @@
     margin-top: 8px;
   }
   .captcha-error.show { display: block; }
+  ───────────────────────────────────────────────────────────────────────────── */
 
   /* ── Loading overlay ────────────────────────────────────── */
   .loading-overlay {
@@ -678,11 +679,11 @@
           <label>Which Choices Flooring consultant have you been speaking with? <span class="req">*</span></label>
           <select id="salesperson">
             <option value="">Select your consultant</option>
-            <option>Ali Johnson</option>
-            <option>Ava Ivory</option>
+            
+            
             <option>Charlotte Mathison</option>
             <option>Fiona Johnson</option>
-            <option>Gabrielle Ogilvie</option>
+            <option>Courtney Pardella</option>
             <option>Kylie Mathison</option>
             <option>Lauren Macauslane</option>
             <option>Mitchell Pollock</option>
@@ -697,12 +698,13 @@
         </div>
       </div>
 
-      <!-- reCAPTCHA -->
+      <!-- reCAPTCHA (DISABLED — to be re-enabled after testing)
       <div class="captcha-wrap">
         <span class="captcha-label">Security Check</span>
         <div class="g-recaptcha" data-sitekey="6LfcwCYtAAAAAOh0O5VvXO8E0LK6Nf-yfSjv8LA7"></div>
         <span class="captcha-error" id="captchaError">Please complete the security check to continue</span>
       </div>
+      -->
 
       <div class="nav-row">
         <div></div>
@@ -944,6 +946,38 @@ function applyAddressComponents(components, fields) {
   fields.filled();
 }
 
+// ── Manual address fallback ─────────────────────────────────────────────────────
+// When Google Maps fails to load (e.g. the API key is missing/invalid), the
+// initAutocomplete() callback never runs, so the address inputs get neither the
+// Places autocomplete nor the blur fallback inside setupAutocomplete(). The user
+// can then type an address but validation still fails with "Please enter your
+// project address". This fallback runs independently of Maps so a manually typed
+// address still registers and passes validation. It is guarded so it never
+// overwrites data already filled by the real Google Places autocomplete.
+function initManualAddressFallback() {
+  const setups = [
+    { search: 'billing_search', address1: 'billing_address1', suburb: 'billing_suburb',
+      manualRow: 'billing-manual', detailsRow: 'billing-details', flag: 'billing' },
+    { search: 'install_search', address1: 'install_address1', suburb: 'install_suburb',
+      manualRow: 'install-manual', detailsRow: 'install-details', flag: 'install' },
+  ];
+  setups.forEach(s => {
+    const input = document.getElementById(s.search);
+    if (!input) return;
+    input.addEventListener('blur', () => {
+      const alreadyFilled = s.flag === 'billing' ? billingFilled : installFilled;
+      if (alreadyFilled) return;                         // real autocomplete handled it
+      const val = input.value.trim();
+      if (!val) return;
+      document.getElementById(s.address1).value = val;
+      document.getElementById(s.manualRow).style.display = 'block';
+      document.getElementById(s.detailsRow).style.display = 'grid';
+      if (s.flag === 'billing') billingFilled = true; else installFilled = true;
+    });
+  });
+}
+initManualAddressFallback();
+
 // ── Progress ──────────────────────────────────────────────────────────────────
 function setProgress(active) {
   document.querySelectorAll('.step').forEach((s, i) => {
@@ -992,13 +1026,13 @@ function goToPage2() {
     showError('salesperson', true); valid = false;
   } else clearError('salesperson');
 
-  // Validate captcha
-  if (!grecaptcha.getResponse()) {
-    document.getElementById('captchaError').classList.add('show');
-    valid = false;
-  } else {
-    document.getElementById('captchaError').classList.remove('show');
-  }
+  // Validate captcha (DISABLED — to be re-enabled after testing)
+  // if (!grecaptcha.getResponse()) {
+  //   document.getElementById('captchaError').classList.add('show');
+  //   valid = false;
+  // } else {
+  //   document.getElementById('captchaError').classList.remove('show');
+  // }
 
   if (valid) goToPage(2);
 }
@@ -1090,7 +1124,7 @@ function buildPayload() {
       salesperson:  sp,
       bill_to:      billTo,
       ship_to:      shipTo,
-      recaptchaToken: grecaptcha.getResponse(),
+      // recaptchaToken: grecaptcha.getResponse(),  // DISABLED — re-enable after testing
     };
   } else {
     return {
@@ -1102,7 +1136,7 @@ function buildPayload() {
       salesperson: sp,
       bill_to:     billTo,
       ship_to:     shipTo,
-      recaptchaToken: grecaptcha.getResponse(),
+      // recaptchaToken: grecaptcha.getResponse(),  // DISABLED — re-enable after testing
     };
   }
 }
@@ -1193,9 +1227,9 @@ function resetForm() {
   document.getElementById('successCard').style.display = 'none';
   document.getElementById('submitBtn').disabled = false;
 
-  // Reset captcha
-  if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
-  document.getElementById('captchaError').classList.remove('show');
+  // Reset captcha (DISABLED — re-enable after testing)
+  // if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
+  // document.getElementById('captchaError').classList.remove('show');
 
   goToPage(1);
 }
@@ -1204,8 +1238,9 @@ function resetForm() {
 window.initAutocomplete = initAutocomplete;
 </script>
 
-<!-- Google reCAPTCHA v2 -->
+<!-- Google reCAPTCHA v2 (DISABLED — re-enable after testing)
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+-->
 <!-- Google Maps Places API — loaded AFTER initAutocomplete is defined to avoid a callback race -->
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=__GOOGLE_MAPS_API_KEY__&libraries=places,marker&v=beta&callback=initAutocomplete"></script>
 </body>
