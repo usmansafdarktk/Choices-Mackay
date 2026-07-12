@@ -887,11 +887,9 @@ function toggleSameAddress() {
 
 // ── Google Places Autocomplete ────────────────────────────────────────────────
 function initAutocomplete() {
-  // Defensive check — Google Maps may have loaded in degraded mode due to an
-  // invalid / missing / referrer-restricted API key.
   if (typeof google === 'undefined' || !google.maps || !google.maps.places) {
     console.warn('Google Maps Places API not available — using manual address entry');
-    return; // initManualAddressFallback() handles this case independently
+    return;
   }
 
   try {
@@ -899,8 +897,7 @@ function initAutocomplete() {
       address1: 'billing_address1', suburb: 'billing_suburb',
       state: 'billing_state', postcode: 'billing_postcode',
       manualRow: 'billing-manual', detailsRow: 'billing-details',
-      filled: function() { billingFilled = true; },
-      flag: 'billing'
+      filled: function() { billingFilled = true; }
     });
   } catch (err) {
     console.warn('Failed to initialize billing address autocomplete:', err);
@@ -911,8 +908,7 @@ function initAutocomplete() {
       address1: 'install_address1', suburb: 'install_suburb',
       state: 'install_state', postcode: 'install_postcode',
       manualRow: 'install-manual', detailsRow: 'install-details',
-      filled: function() { installFilled = true; },
-      flag: 'install'
+      filled: function() { installFilled = true; }
     });
   } catch (err) {
     console.warn('Failed to initialize install address autocomplete:', err);
@@ -923,33 +919,22 @@ function setupAutocomplete(inputId, fields) {
   var input = document.getElementById(inputId);
   if (!input) return;
 
-  if (!google.maps.places.Autocomplete) {
-    attachBlurFallback(input, fields);
-    return;
+  if (google.maps.places.Autocomplete) {
+    var ac = new google.maps.places.Autocomplete(input, {
+      componentRestrictions: { country: 'au' },
+      fields: ['address_components'],
+      types: ['address'],
+    });
+    ac.addListener('place_changed', function() {
+      var place = ac.getPlace();
+      if (!place || !place.address_components) return;
+      applyAddressComponents(place.address_components, fields);
+    });
   }
 
-  var ac = new google.maps.places.Autocomplete(input, {
-    componentRestrictions: { country: 'au' },
-    fields: ['address_components'],
-    types: ['address'],
-  });
-
-  ac.addListener('place_changed', function() {
-    var place = ac.getPlace();
-    if (!place || !place.address_components) return;
-    applyAddressComponents(place.address_components, fields);
-  });
-
-  // Also attach the blur fallback as a safety net — it won't overwrite data
-  // that the real Places autocomplete already filled.
-  attachBlurFallback(input, fields);
-}
-
-// Shared blur-to-manual-fields helper used both as a safety net underneath
-// the real Places autocomplete AND as the primary fallback when Maps is
-// unavailable.  The already‑filled guard means it never clobbers data that
-// came from a successful place_changed event.
-function attachBlurFallback(input, fields) {
+  // Blur fallback — runs regardless of whether Autocomplete was created.
+  // The already‑filled guard prevents overwriting data from a successful
+  // place_changed event.
   input.addEventListener('blur', function() {
     var alreadyFilled = document.getElementById(fields.address1).value.trim() !== '';
     if (alreadyFilled) return;
@@ -963,16 +948,16 @@ function attachBlurFallback(input, fields) {
 }
 
 function applyAddressComponents(components, fields) {
-  let streetNumber = '', route = '', suburb = '', state = '', postcode = '';
-  const stateMap = { 'NSW':'NSW','VIC':'Vic','QLD':'Qld','SA':'SA','WA':'WA','TAS':'Tas','NT':'NT','ACT':'ACT' };
-  components.forEach(c => {
-    if (c.types.includes('street_number')) streetNumber = c.long_name;
-    if (c.types.includes('route')) route = c.long_name;
-    if (c.types.includes('locality')) suburb = c.long_name;
-    if (c.types.includes('administrative_area_level_1')) state = stateMap[c.short_name] || c.short_name;
-    if (c.types.includes('postal_code')) postcode = c.long_name;
+  var streetNumber = '', route = '', suburb = '', state = '', postcode = '';
+  var stateMap = { 'NSW':'NSW','VIC':'Vic','QLD':'Qld','SA':'SA','WA':'WA','TAS':'Tas','NT':'NT','ACT':'ACT' };
+  components.forEach(function(c) {
+    if (c.types.indexOf('street_number') !== -1) streetNumber = c.long_name;
+    if (c.types.indexOf('route') !== -1) route = c.long_name;
+    if (c.types.indexOf('locality') !== -1) suburb = c.long_name;
+    if (c.types.indexOf('administrative_area_level_1') !== -1) state = stateMap[c.short_name] || c.short_name;
+    if (c.types.indexOf('postal_code') !== -1) postcode = c.long_name;
   });
-  const address1 = [streetNumber, route].filter(Boolean).join(' ');
+  var address1 = [streetNumber, route].filter(Boolean).join(' ');
   document.getElementById(fields.address1).value = address1;
   document.getElementById(fields.suburb).value   = suburb;
   document.getElementById(fields.state).value    = state;
@@ -981,30 +966,6 @@ function applyAddressComponents(components, fields) {
   document.getElementById(fields.detailsRow).style.display = 'grid';
   fields.filled();
 }
-
-// ── Independent manual-address fallback ──────────────────────────────────────────
-// Runs synchronously on page load, BEFORE the Google Maps callback fires, so a
-// manually typed address always registers regardless of whether Maps loads.  Uses
-// the shared attachBlurFallback() helper which guards against overwriting data
-// already filled by the real Places autocomplete.
-(function initManualAddressFallback() {
-  var billingFields = {
-    address1: 'billing_address1', suburb: 'billing_suburb',
-    state: 'billing_state', postcode: 'billing_postcode',
-    manualRow: 'billing-manual', detailsRow: 'billing-details',
-    filled: function() { billingFilled = true; },
-  };
-  var installFields = {
-    address1: 'install_address1', suburb: 'install_suburb',
-    state: 'install_state', postcode: 'install_postcode',
-    manualRow: 'install-manual', detailsRow: 'install-details',
-    filled: function() { installFilled = true; },
-  };
-  var billingInput = document.getElementById('billing_search');
-  var installInput = document.getElementById('install_search');
-  if (billingInput) attachBlurFallback(billingInput, billingFields);
-  if (installInput) attachBlurFallback(installInput, installFields);
-})();
 
 // ── Progress ──────────────────────────────────────────────────────────────────
 function setProgress(active) {
@@ -1269,18 +1230,18 @@ window.initAutocomplete = initAutocomplete;
 <!-- Google reCAPTCHA v2 (DISABLED — re-enable after testing)
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 -->
-<!-- Local dev override: set your API key in the browser console via
-     localStorage.setItem('gmaps_key_dev', 'YOUR_KEY') — never commit a real key -->
+<!-- Google Maps Places API — loaded dynamically so the key can be overridden
+     locally via localStorage.setItem('gmaps_key_dev', 'YOUR_KEY').
+     In production the CI workflow replaces __GOOGLE_MAPS_API_KEY__ everywhere. -->
 <script>
 (function(){
-  var devKey = localStorage.getItem('gmaps_key_dev');
-  if (devKey) {
-    var script = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (script) script.src = script.src.replace('__GOOGLE_MAPS_API_KEY__', devKey);
-  }
+  var key = localStorage.getItem('gmaps_key_dev') || '__GOOGLE_MAPS_API_KEY__';
+  var s = document.createElement('script');
+  s.async = true;
+  s.defer = true;
+  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&libraries=places&v=weekly&callback=initAutocomplete';
+  document.head.appendChild(s);
 })();
 </script>
-<!-- Google Maps Places API — loaded AFTER initAutocomplete is defined to avoid a callback race -->
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=__GOOGLE_MAPS_API_KEY__&libraries=places&v=weekly&callback=initAutocomplete"></script>
 </body>
 </html>
