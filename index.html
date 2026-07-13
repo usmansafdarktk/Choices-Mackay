@@ -1088,12 +1088,12 @@ function setupAutocomplete(inputId, fields) {
     var val = input.value.trim();
     console.log('[AUTOCOMPLETE][' + inputId + '] IN1. trimmed value="' + val + '", length:', val.length);
     if (debounceTimer) clearTimeout(debounceTimer);
-    if (val.length < 3) { console.log('[AUTOCOMPLETE][' + inputId + '] IN2. length < 3, closing list'); closeList(); return; }
-    console.log('[AUTOCOMPLETE][' + inputId + '] IN3. setting debounce timer 250ms');
+    if (val.length < 1) { console.log('[AUTOCOMPLETE][' + inputId + '] IN2. empty input, closing list'); closeList(); return; }
+    console.log('[AUTOCOMPLETE][' + inputId + '] IN3. setting debounce timer 150ms');
     debounceTimer = setTimeout(function() {
       console.log('[AUTOCOMPLETE][' + inputId + '] IN4. debounce fired, calling fetchSuggestions');
       fetchSuggestions(val);
-    }, 250);
+    }, 150);
   });
   console.log('[AUTOCOMPLETE][' + inputId + '] D. input event listener attached');
 
