@@ -901,44 +901,65 @@ function toggleSameAddress() {
 // this project. We render our own dropdown so the existing inputs, styling,
 // validation and manual‑entry fallback all keep working unchanged.
 function initAutocomplete() {
+  console.log('[AUTOCOMPLETE] 1. initAutocomplete entered');
+  console.log('[AUTOCOMPLETE] 1a. typeof google =', typeof google);
+  console.log('[AUTOCOMPLETE] 1b. typeof google.maps =', typeof google !== 'undefined' ? typeof google.maps : 'google undefined');
+  console.log('[AUTOCOMPLETE] 1c. typeof google.maps.places =', typeof google !== 'undefined' && google.maps ? typeof google.maps.places : 'n/a');
+
   if (typeof google === 'undefined' || !google.maps || !google.maps.places ||
       !google.maps.places.AutocompleteSuggestion) {
-    console.warn('Google Maps Places API (New) not available — using manual address entry');
+    console.warn('[AUTOCOMPLETE] GUARD FAILED — AutocompleteSuggestion not available');
+    console.warn('[AUTOCOMPLETE] google.maps.places keys:', typeof google !== 'undefined' && google.maps && google.maps.places ? Object.keys(google.maps.places) : 'n/a');
     return;
   }
+  console.log('[AUTOCOMPLETE] 2. Guard passed — AutocompleteSuggestion exists');
+
+  console.log('[AUTOCOMPLETE] 2a. typeof AutocompleteSuggestion =', typeof google.maps.places.AutocompleteSuggestion);
+  console.log('[AUTOCOMPLETE] 2b. typeof fetchAutocompleteSuggestions =', typeof google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions);
+  console.log('[AUTOCOMPLETE] 2c. static props on AutocompleteSuggestion:', Object.getOwnPropertyNames(google.maps.places.AutocompleteSuggestion));
 
   try {
+    console.log('[AUTOCOMPLETE] 3. Calling setupAutocomplete for billing_search');
     setupAutocomplete('billing_search', {
       address1: 'billing_address1', suburb: 'billing_suburb',
       state: 'billing_state', postcode: 'billing_postcode',
       manualRow: 'billing-manual', detailsRow: 'billing-details',
       filled: function() { billingFilled = true; }
     });
+    console.log('[AUTOCOMPLETE] 3a. setupAutocomplete billing_search returned OK');
   } catch (err) {
-    console.warn('Failed to initialize billing address autocomplete:', err);
+    console.error('[AUTOCOMPLETE] 3b. setupAutocomplete billing_search THREW:', err);
   }
 
   try {
+    console.log('[AUTOCOMPLETE] 4. Calling setupAutocomplete for install_search');
     setupAutocomplete('install_search', {
       address1: 'install_address1', suburb: 'install_suburb',
       state: 'install_state', postcode: 'install_postcode',
       manualRow: 'install-manual', detailsRow: 'install-details',
       filled: function() { installFilled = true; }
     });
+    console.log('[AUTOCOMPLETE] 4a. setupAutocomplete install_search returned OK');
   } catch (err) {
-    console.warn('Failed to initialize install address autocomplete:', err);
+    console.error('[AUTOCOMPLETE] 4b. setupAutocomplete install_search THREW:', err);
   }
+
+  console.log('[AUTOCOMPLETE] 5. initAutocomplete complete');
 }
 
 function setupAutocomplete(inputId, fields) {
   var input = document.getElementById(inputId);
-  if (!input) return;
+  console.log('[AUTOCOMPLETE][' + inputId + '] A. setupAutocomplete, input element found:', !!input);
+  if (!input) { console.error('[AUTOCOMPLETE][' + inputId + '] A1. INPUT NOT FOUND'); return; }
 
   var wrap = input.closest('.address-wrap') || input.parentNode;
+  console.log('[AUTOCOMPLETE][' + inputId + '] B. wrap element found:', !!wrap, 'tag:', wrap && wrap.tagName);
+
   var list = document.createElement('div');
   list.className = 'addr-suggestions';
   list.style.display = 'none';
   wrap.appendChild(list);
+  console.log('[AUTOCOMPLETE][' + inputId + '] C. dropdown list appended to wrap');
 
   var suggestions = [];
   var activeIndex = -1;
@@ -946,12 +967,16 @@ function setupAutocomplete(inputId, fields) {
   var debounceTimer = null;
 
   function newSession() {
+    console.log('[AUTOCOMPLETE][' + inputId + '] DS. newSession called');
+    console.log('[AUTOCOMPLETE][' + inputId + '] DS. typeof AutocompleteSessionToken =', typeof google.maps.places.AutocompleteSessionToken);
     sessionToken = google.maps.places.AutocompleteSessionToken
       ? new google.maps.places.AutocompleteSessionToken()
       : null;
+    console.log('[AUTOCOMPLETE][' + inputId + '] DS. sessionToken =', sessionToken);
   }
 
   function closeList() {
+    console.log('[AUTOCOMPLETE][' + inputId + '] CL. closeList called');
     list.style.display = 'none';
     list.innerHTML = '';
     suggestions = [];
@@ -959,13 +984,17 @@ function setupAutocomplete(inputId, fields) {
   }
 
   function render() {
+    console.log('[AUTOCOMPLETE][' + inputId + '] R. render called, suggestions count:', suggestions.length);
     list.innerHTML = '';
     activeIndex = -1;
-    if (!suggestions.length) { closeList(); return; }
+    if (!suggestions.length) { console.log('[AUTOCOMPLETE][' + inputId + '] R1. no suggestions, calling closeList'); closeList(); return; }
+    console.log('[AUTOCOMPLETE][' + inputId + '] R2. rendering', suggestions.length, 'items');
     suggestions.forEach(function(s, i) {
       var p = s.placePrediction;
+      console.log('[AUTOCOMPLETE][' + inputId + '] R3. suggestion[' + i + '] placePrediction:', !!p, 'keys:', p ? Object.keys(p) : 'null');
       var main = (p.mainText && p.mainText.text) || (p.text && p.text.text) || '';
       var secondary = (p.secondaryText && p.secondaryText.text) || '';
+      console.log('[AUTOCOMPLETE][' + inputId + '] R4. suggestion[' + i + '] main="' + main + '" secondary="' + secondary + '"');
       var item = document.createElement('div');
       item.className = 'addr-suggestion';
       var mainEl = document.createElement('span');
@@ -978,7 +1007,6 @@ function setupAutocomplete(inputId, fields) {
         secEl.textContent = ' ' + secondary;
         item.appendChild(secEl);
       }
-      // mousedown (not click) so it fires before the input's blur handler.
       item.addEventListener('mousedown', function(e) {
         e.preventDefault();
         selectSuggestion(i);
@@ -986,23 +1014,54 @@ function setupAutocomplete(inputId, fields) {
       list.appendChild(item);
     });
     list.style.display = 'block';
+    console.log('[AUTOCOMPLETE][' + inputId + '] R5. list set to display:block, child count:', list.children.length);
+    console.log('[AUTOCOMPLETE][' + inputId + '] R6. list computed style:', window.getComputedStyle(list).display, '| visibility:', window.getComputedStyle(list).visibility, '| zIndex:', window.getComputedStyle(list).zIndex, '| height:', list.offsetHeight, '| width:', list.offsetWidth);
   }
 
   function fetchSuggestions(val) {
-    if (!sessionToken) newSession();
-    google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+    console.log('[AUTOCOMPLETE][' + inputId + '] F. fetchSuggestions entered, val="' + val + '"');
+    console.log('[AUTOCOMPLETE][' + inputId + '] F1. typeof fetchAutocompleteSuggestions =', typeof google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions);
+
+    if (!sessionToken) { console.log('[AUTOCOMPLETE][' + inputId + '] F2. no sessionToken, calling newSession'); newSession(); }
+
+    var requestObj = {
       input: val,
       includedRegionCodes: ['au'],
-      // No includedPrimaryTypes filter — accept all place types for the fastest,
-      // richest suggestions. Australian results are enforced by includedRegionCodes.
       sessionToken: sessionToken
-    }).then(function(res) {
-      suggestions = (res.suggestions || []).filter(function(s) { return s.placePrediction; });
-      render();
-    }).catch(function(err) {
-      console.warn('Autocomplete request failed:', err);
+    };
+    console.log('[AUTOCOMPLETE][' + inputId + '] F3. request object:', JSON.stringify(requestObj, function(key, val) { return key === 'sessionToken' ? (val ? '[SessionToken]' : 'null') : val; }));
+
+    try {
+      console.log('[AUTOCOMPLETE][' + inputId + '] F4. about to call fetchAutocompleteSuggestions...');
+      var promise = google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(requestObj);
+      console.log('[AUTOCOMPLETE][' + inputId + '] F5. Promise created, type:', typeof promise, 'isPromise:', promise instanceof Promise);
+      console.log('[AUTOCOMPLETE][' + inputId + '] F6. Promise:', promise);
+
+      promise.then(function(res) {
+        console.log('[AUTOCOMPLETE][' + inputId + '] F7. Promise RESOLVED, res:', res);
+        console.log('[AUTOCOMPLETE][' + inputId + '] F8. res.suggestions:', res && res.suggestions);
+        console.log('[AUTOCOMPLETE][' + inputId + '] F9. res.suggestions length:', res && res.suggestions ? res.suggestions.length : 0);
+        if (res && res.suggestions && res.suggestions.length > 0) {
+          console.log('[AUTOCOMPLETE][' + inputId + '] F10. first suggestion keys:', Object.keys(res.suggestions[0]));
+          console.log('[AUTOCOMPLETE][' + inputId + '] F11. first suggestion:', res.suggestions[0]);
+          console.log('[AUTOCOMPLETE][' + inputId + '] F12. first suggestion.placePrediction:', res.suggestions[0].placePrediction);
+        }
+        suggestions = (res.suggestions || []).filter(function(s) { return s.placePrediction; });
+        console.log('[AUTOCOMPLETE][' + inputId + '] F13. after filter, suggestions count:', suggestions.length);
+        render();
+      }).catch(function(err) {
+        console.error('[AUTOCOMPLETE][' + inputId + '] F14. Promise REJECTED:', err);
+        console.error('[AUTOCOMPLETE][' + inputId + '] F15. error type:', err && err.constructor && err.constructor.name);
+        console.error('[AUTOCOMPLETE][' + inputId + '] F16. error message:', err && err.message);
+        closeList();
+      });
+    } catch (syncErr) {
+      console.error('[AUTOCOMPLETE][' + inputId + '] F17. SYNCHRONOUS EXCEPTION in fetchSuggestions:', syncErr);
+      console.error('[AUTOCOMPLETE][' + inputId + '] F18. error type:', syncErr && syncErr.constructor && syncErr.constructor.name);
+      console.error('[AUTOCOMPLETE][' + inputId + '] F19. error message:', syncErr && syncErr.message);
+      console.error('[AUTOCOMPLETE][' + inputId + '] F20. error stack:', syncErr && syncErr.stack);
       closeList();
-    });
+    }
   }
 
   function selectSuggestion(i) {
@@ -1015,10 +1074,9 @@ function setupAutocomplete(inputId, fields) {
     var place = p.toPlace();
     place.fetchFields({ fields: ['addressComponents'] }).then(function() {
       applyAddressComponents(place.addressComponents || [], fields);
-      sessionToken = null; // a selection ends the billing session
+      sessionToken = null;
     }).catch(function(err) {
       console.warn('Failed to fetch place details:', err);
-      // Fallback: keep the typed/selected text as the street address.
       document.getElementById(fields.address1).value = input.value.trim();
       document.getElementById(fields.manualRow).style.display = 'block';
       document.getElementById(fields.detailsRow).style.display = 'grid';
@@ -1027,12 +1085,19 @@ function setupAutocomplete(inputId, fields) {
   }
 
   input.addEventListener('input', function() {
+    console.log('[AUTOCOMPLETE][' + inputId + '] IN. input event fired, value="' + input.value + '"');
     input.classList.remove('error');
     var val = input.value.trim();
+    console.log('[AUTOCOMPLETE][' + inputId + '] IN1. trimmed value="' + val + '", length:', val.length);
     if (debounceTimer) clearTimeout(debounceTimer);
-    if (val.length < 3) { closeList(); return; }
-    debounceTimer = setTimeout(function() { fetchSuggestions(val); }, 250);
+    if (val.length < 3) { console.log('[AUTOCOMPLETE][' + inputId + '] IN2. length < 3, closing list'); closeList(); return; }
+    console.log('[AUTOCOMPLETE][' + inputId + '] IN3. setting debounce timer 250ms');
+    debounceTimer = setTimeout(function() {
+      console.log('[AUTOCOMPLETE][' + inputId + '] IN4. debounce fired, calling fetchSuggestions');
+      fetchSuggestions(val);
+    }, 250);
   });
+  console.log('[AUTOCOMPLETE][' + inputId + '] D. input event listener attached');
 
   input.addEventListener('keydown', function(e) {
     if (list.style.display === 'none' || !suggestions.length) return;
@@ -1048,9 +1113,8 @@ function setupAutocomplete(inputId, fields) {
       closeList();
     }
   });
+  console.log('[AUTOCOMPLETE][' + inputId + '] E. keydown event listener attached');
 
-  // Blur fallback — close the dropdown and, if no address was resolved, keep the
-  // typed text so the user can still submit a manually entered address.
   input.addEventListener('blur', function() {
     setTimeout(closeList, 150);
     var alreadyFilled = document.getElementById(fields.address1).value.trim() !== '';
@@ -1062,6 +1126,8 @@ function setupAutocomplete(inputId, fields) {
     document.getElementById(fields.detailsRow).style.display = 'grid';
     fields.filled();
   });
+  console.log('[AUTOCOMPLETE][' + inputId + '] F. blur event listener attached');
+  console.log('[AUTOCOMPLETE][' + inputId + '] G. setupAutocomplete COMPLETE for', inputId);
 }
 
 function applyAddressComponents(components, fields) {
