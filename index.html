@@ -287,26 +287,35 @@
     font-weight: 400;
   }
 
-  /* ── Address autocomplete ───────────────────────────────── */
+  /* ── Address autocomplete (new Places API custom dropdown) ─ */
   .address-wrap { position: relative; }
-  .pac-container {
-    border-radius: 8px !important;
-    border: 1px solid var(--border) !important;
-    box-shadow: 0 10px 28px rgba(20,40,70,0.12) !important;
-    font-family: 'Poppins', sans-serif !important;
+  .addr-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 50;
     margin-top: 4px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 28px rgba(20,40,70,0.12);
+    overflow: hidden auto;
+    max-height: 280px;
   }
-  .pac-item {
-    font-family: 'Poppins', sans-serif !important;
-    font-size: 13px !important;
-    padding: 10px 14px !important;
-    color: var(--charcoal) !important;
+  .addr-suggestion {
+    font-size: 13px;
+    padding: 10px 14px;
+    color: var(--charcoal);
     cursor: pointer;
-    border-top: 1px solid #F0F2F4 !important;
+    border-top: 1px solid #F0F2F4;
+    line-height: 1.4;
   }
-  .pac-item:hover { background: var(--brand-soft) !important; }
-  .pac-icon { display: none !important; }
-  .pac-item-query { font-weight: 600 !important; }
+  .addr-suggestion:first-child { border-top: none; }
+  .addr-suggestion:hover,
+  .addr-suggestion.active { background: var(--brand-soft); }
+  .addr-main { font-weight: 600; }
+  .addr-secondary { color: var(--light); }
 
   /* ── Dividers & section labels ──────────────────────────── */
   .divider {
@@ -885,10 +894,16 @@ function toggleSameAddress() {
   document.getElementById('installation-section').style.display = sameAddress ? 'none' : 'block';
 }
 
-// ── Google Places Autocomplete ────────────────────────────────────────────────
+// ── Google Places Autocomplete (new Places API) ───────────────────────────────
+// Uses google.maps.places.AutocompleteSuggestion (Places API New) rather than the
+// deprecated google.maps.places.Autocomplete widget, which is (a) unavailable to
+// new customers and (b) backed by the legacy Places API that is not enabled on
+// this project. We render our own dropdown so the existing inputs, styling,
+// validation and manual‑entry fallback all keep working unchanged.
 function initAutocomplete() {
-  if (typeof google === 'undefined' || !google.maps || !google.maps.places) {
-    console.warn('Google Maps Places API not available — using manual address entry');
+  if (typeof google === 'undefined' || !google.maps || !google.maps.places ||
+      !google.maps.places.AutocompleteSuggestion) {
+    console.warn('Google Maps Places API (New) not available — using manual address entry');
     return;
   }
 
@@ -919,23 +934,124 @@ function setupAutocomplete(inputId, fields) {
   var input = document.getElementById(inputId);
   if (!input) return;
 
-  if (google.maps.places.Autocomplete) {
-    var ac = new google.maps.places.Autocomplete(input, {
-      componentRestrictions: { country: 'au' },
-      fields: ['address_components'],
-      types: ['address'],
+  var wrap = input.closest('.address-wrap') || input.parentNode;
+  var list = document.createElement('div');
+  list.className = 'addr-suggestions';
+  list.style.display = 'none';
+  wrap.appendChild(list);
+
+  var suggestions = [];
+  var activeIndex = -1;
+  var sessionToken = null;
+  var debounceTimer = null;
+
+  function newSession() {
+    sessionToken = google.maps.places.AutocompleteSessionToken
+      ? new google.maps.places.AutocompleteSessionToken()
+      : null;
+  }
+
+  function closeList() {
+    list.style.display = 'none';
+    list.innerHTML = '';
+    suggestions = [];
+    activeIndex = -1;
+  }
+
+  function render() {
+    list.innerHTML = '';
+    activeIndex = -1;
+    if (!suggestions.length) { closeList(); return; }
+    suggestions.forEach(function(s, i) {
+      var p = s.placePrediction;
+      var main = (p.mainText && p.mainText.text) || (p.text && p.text.text) || '';
+      var secondary = (p.secondaryText && p.secondaryText.text) || '';
+      var item = document.createElement('div');
+      item.className = 'addr-suggestion';
+      var mainEl = document.createElement('span');
+      mainEl.className = 'addr-main';
+      mainEl.textContent = main;
+      item.appendChild(mainEl);
+      if (secondary) {
+        var secEl = document.createElement('span');
+        secEl.className = 'addr-secondary';
+        secEl.textContent = ' ' + secondary;
+        item.appendChild(secEl);
+      }
+      // mousedown (not click) so it fires before the input's blur handler.
+      item.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        selectSuggestion(i);
+      });
+      list.appendChild(item);
     });
-    ac.addListener('place_changed', function() {
-      var place = ac.getPlace();
-      if (!place || !place.address_components) return;
-      applyAddressComponents(place.address_components, fields);
+    list.style.display = 'block';
+  }
+
+  function fetchSuggestions(val) {
+    if (!sessionToken) newSession();
+    google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+      input: val,
+      includedRegionCodes: ['au'],
+      includedPrimaryTypes: ['address'],
+      sessionToken: sessionToken
+    }).then(function(res) {
+      suggestions = (res.suggestions || []).filter(function(s) { return s.placePrediction; });
+      render();
+    }).catch(function(err) {
+      console.warn('Autocomplete request failed:', err);
+      closeList();
     });
   }
 
-  // Blur fallback — runs regardless of whether Autocomplete was created.
-  // The already‑filled guard prevents overwriting data from a successful
-  // place_changed event.
+  function selectSuggestion(i) {
+    var s = suggestions[i];
+    if (!s) return;
+    var p = s.placePrediction;
+    input.value = (p.text && p.text.text) || input.value;
+    input.classList.remove('error');
+    closeList();
+    var place = p.toPlace();
+    place.fetchFields({ fields: ['addressComponents'] }).then(function() {
+      applyAddressComponents(place.addressComponents || [], fields);
+      sessionToken = null; // a selection ends the billing session
+    }).catch(function(err) {
+      console.warn('Failed to fetch place details:', err);
+      // Fallback: keep the typed/selected text as the street address.
+      document.getElementById(fields.address1).value = input.value.trim();
+      document.getElementById(fields.manualRow).style.display = 'block';
+      document.getElementById(fields.detailsRow).style.display = 'grid';
+      fields.filled();
+    });
+  }
+
+  input.addEventListener('input', function() {
+    input.classList.remove('error');
+    var val = input.value.trim();
+    if (debounceTimer) clearTimeout(debounceTimer);
+    if (val.length < 3) { closeList(); return; }
+    debounceTimer = setTimeout(function() { fetchSuggestions(val); }, 250);
+  });
+
+  input.addEventListener('keydown', function(e) {
+    if (list.style.display === 'none' || !suggestions.length) return;
+    var items = list.querySelectorAll('.addr-suggestion');
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      var dir = e.key === 'ArrowDown' ? 1 : -1;
+      activeIndex = (activeIndex + dir + items.length) % items.length;
+      items.forEach(function(it, idx) { it.classList.toggle('active', idx === activeIndex); });
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0) { e.preventDefault(); selectSuggestion(activeIndex); }
+    } else if (e.key === 'Escape') {
+      closeList();
+    }
+  });
+
+  // Blur fallback — close the dropdown and, if no address was resolved, keep the
+  // typed text so the user can still submit a manually entered address.
   input.addEventListener('blur', function() {
+    setTimeout(closeList, 150);
     var alreadyFilled = document.getElementById(fields.address1).value.trim() !== '';
     if (alreadyFilled) return;
     var val = input.value.trim();
@@ -951,11 +1067,15 @@ function applyAddressComponents(components, fields) {
   var streetNumber = '', route = '', suburb = '', state = '', postcode = '';
   var stateMap = { 'NSW':'NSW','VIC':'Vic','QLD':'Qld','SA':'SA','WA':'WA','TAS':'Tas','NT':'NT','ACT':'ACT' };
   components.forEach(function(c) {
-    if (c.types.indexOf('street_number') !== -1) streetNumber = c.long_name;
-    if (c.types.indexOf('route') !== -1) route = c.long_name;
-    if (c.types.indexOf('locality') !== -1) suburb = c.long_name;
-    if (c.types.indexOf('administrative_area_level_1') !== -1) state = stateMap[c.short_name] || c.short_name;
-    if (c.types.indexOf('postal_code') !== -1) postcode = c.long_name;
+    var types = c.types || [];
+    // New Places API returns longText/shortText; keep long_name/short_name as a fallback.
+    var longText  = (c.longText  != null) ? c.longText  : c.long_name;
+    var shortText = (c.shortText != null) ? c.shortText : c.short_name;
+    if (types.indexOf('street_number') !== -1) streetNumber = longText;
+    if (types.indexOf('route') !== -1) route = longText;
+    if (types.indexOf('locality') !== -1) suburb = longText;
+    if (types.indexOf('administrative_area_level_1') !== -1) state = stateMap[shortText] || shortText;
+    if (types.indexOf('postal_code') !== -1) postcode = longText;
   });
   var address1 = [streetNumber, route].filter(Boolean).join(' ');
   document.getElementById(fields.address1).value = address1;
@@ -1239,7 +1359,7 @@ window.initAutocomplete = initAutocomplete;
   var s = document.createElement('script');
   s.async = true;
   s.defer = true;
-  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&libraries=places&v=weekly&callback=initAutocomplete';
+  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&libraries=places&v=weekly&loading=async&callback=initAutocomplete';
   document.head.appendChild(s);
 })();
 </script>
