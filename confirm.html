@@ -224,7 +224,7 @@
     .opt-btn { padding: 9px 14px; font-size: 12px; }
   }
 
-  /* ── Slider Captcha ────────────────────────────────────────────────── */
+  /* ── reCAPTCHA ──────────────────────────────────────────── */
   .captcha-wrap { margin-bottom: 24px; }
   .captcha-label {
     font-size: 11px;
@@ -390,6 +390,7 @@ function submitEntry() {
   let valid = true;
   if (!selectedPayment) { document.getElementById('err-payment').classList.add('show'); valid = false; }
   if (!selectedType)    { document.getElementById('err-type').classList.add('show');    valid = false; }
+  // Validate captcha
   if (!grecaptcha.getResponse()) {
     document.getElementById('captchaError').classList.add('show');
     valid = false;
@@ -432,7 +433,6 @@ function showState(state) {
 
 </script>
 
-<!-- Google reCAPTCHA v2 -->
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </body>
 </html>

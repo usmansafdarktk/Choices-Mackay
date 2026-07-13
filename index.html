@@ -507,7 +507,7 @@
   }
   .btn-start-again:hover { border-color: var(--brand); color: var(--brand); }
 
-  /* ── reCAPTCHA wrapper (DISABLED — to be re-enabled after testing) ───────────────
+  /* ── reCAPTCHA wrapper ──────────────────────────────────── */
   .captcha-wrap { margin-bottom: 24px; }
   .captcha-label {
     font-size: 11px;
@@ -526,7 +526,6 @@
     margin-top: 8px;
   }
   .captcha-error.show { display: block; }
-  ───────────────────────────────────────────────────────────────────────────── */
 
   /* ── Loading overlay ────────────────────────────────────── */
   .loading-overlay {
@@ -707,13 +706,12 @@
         </div>
       </div>
 
-      <!-- reCAPTCHA (DISABLED — to be re-enabled after testing)
+      <!-- reCAPTCHA -->
       <div class="captcha-wrap">
         <span class="captcha-label">Security Check</span>
         <div class="g-recaptcha" data-sitekey="6LfcwCYtAAAAAOh0O5VvXO8E0LK6Nf-yfSjv8LA7"></div>
         <span class="captcha-error" id="captchaError">Please complete the security check to continue</span>
       </div>
-      -->
 
       <div class="nav-row">
         <div></div>
@@ -1202,13 +1200,13 @@ function goToPage2() {
     showError('salesperson', true); valid = false;
   } else clearError('salesperson');
 
-  // Validate captcha (DISABLED — to be re-enabled after testing)
-  // if (!grecaptcha.getResponse()) {
-  //   document.getElementById('captchaError').classList.add('show');
-  //   valid = false;
-  // } else {
-  //   document.getElementById('captchaError').classList.remove('show');
-  // }
+  // Validate captcha
+  if (!grecaptcha.getResponse()) {
+    document.getElementById('captchaError').classList.add('show');
+    valid = false;
+  } else {
+    document.getElementById('captchaError').classList.remove('show');
+  }
 
   if (valid) goToPage(2);
 }
@@ -1300,7 +1298,7 @@ function buildPayload() {
       salesperson:  sp,
       bill_to:      billTo,
       ship_to:      shipTo,
-      // recaptchaToken: grecaptcha.getResponse(),  // DISABLED — re-enable after testing
+      recaptchaToken: grecaptcha.getResponse(),
     };
   } else {
     return {
@@ -1312,7 +1310,7 @@ function buildPayload() {
       salesperson: sp,
       bill_to:     billTo,
       ship_to:     shipTo,
-      // recaptchaToken: grecaptcha.getResponse(),  // DISABLED — re-enable after testing
+      recaptchaToken: grecaptcha.getResponse(),
     };
   }
 }
@@ -1403,9 +1401,9 @@ function resetForm() {
   document.getElementById('successCard').style.display = 'none';
   document.getElementById('submitBtn').disabled = false;
 
-  // Reset captcha (DISABLED — re-enable after testing)
-  // if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
-  // document.getElementById('captchaError').classList.remove('show');
+  // Reset captcha
+  if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
+  document.getElementById('captchaError').classList.remove('show');
 
   goToPage(1);
 }
@@ -1414,9 +1412,8 @@ function resetForm() {
 window.initAutocomplete = initAutocomplete;
 </script>
 
-<!-- Google reCAPTCHA v2 (DISABLED — re-enable after testing)
+<!-- Google reCAPTCHA v2 -->
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
--->
 <!-- Google Maps Places API — loaded dynamically so the key can be overridden
      locally via localStorage.setItem('gmaps_key_dev', 'YOUR_KEY').
      In production the CI workflow replaces __GOOGLE_MAPS_API_KEY__ everywhere. -->
