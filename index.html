@@ -993,7 +993,9 @@ function setupAutocomplete(inputId, fields) {
     google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
       input: val,
       includedRegionCodes: ['au'],
-      includedPrimaryTypes: ['address'],
+      // New Places API type collections — 'address' (legacy) is invalid here;
+      // these Table-A types return street-level addresses.
+      includedPrimaryTypes: ['street_address', 'subpremise', 'premise'],
       sessionToken: sessionToken
     }).then(function(res) {
       suggestions = (res.suggestions || []).filter(function(s) { return s.placePrediction; });
