@@ -1289,6 +1289,9 @@ function buildPayload() {
   if (isCompany) {
     const bp = document.getElementById('company_phone').value.trim();
     const mp = document.getElementById('company_mobile').value.trim();
+    // NOTE: billTo/shipTo swapped — HTML "Project Address" (billing_* fields)
+    // maps to BOS ship_to, HTML "Billing Address" (install_* fields) maps to BOS bill_to.
+    // Revert this swap if address mapping breaks in BOS.
     return {
       type:         'Company',
       company_name: document.getElementById('company_name').value,
@@ -1296,8 +1299,8 @@ function buildPayload() {
       email:        document.getElementById('company_email').value,
       abn:          document.getElementById('abn').value,
       salesperson:  sp,
-      bill_to:      billTo,
-      ship_to:      shipTo,
+      bill_to:      shipTo,
+      ship_to:      billTo,
       recaptchaToken: grecaptcha.getResponse(),
     };
   } else {
@@ -1308,8 +1311,8 @@ function buildPayload() {
       phone:       document.getElementById('phone').value,
       email:       document.getElementById('email').value,
       salesperson: sp,
-      bill_to:     billTo,
-      ship_to:     shipTo,
+      bill_to:     shipTo,
+      ship_to:     billTo,
       recaptchaToken: grecaptcha.getResponse(),
     };
   }
