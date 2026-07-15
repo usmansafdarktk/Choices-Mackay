@@ -357,6 +357,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 function renderSummary(p) {
   const grid = document.getElementById('summaryGrid');
+  const isSame = p.shipping_same_as_billing === true || p.shipping_same_as_billing === 'true' || !p.ship_address1 || p.ship_address1 === p.bill_address1;
   const rows = [
     ['Company', `<strong>${p.company_name}</strong>`],
     ['Phone', p.phone],
@@ -365,7 +366,7 @@ function renderSummary(p) {
     ['Consultant', p.salesperson],
     null,
     ['Project', `${p.bill_address1}, ${p.bill_suburb} ${p.bill_state} ${p.bill_postcode}`],
-    ['Billing', `${p.ship_address1}, ${p.ship_suburb} ${p.ship_state} ${p.ship_postcode}`],
+    ['Billing', isSame ? '<span style="color:var(--mid)">Same as project address</span>' : `${p.ship_address1}, ${p.ship_suburb} ${p.ship_state} ${p.ship_postcode}`],
   ].filter(Boolean);
   grid.innerHTML = rows.map(row => {
     if (row === null) return '<hr class="summary-divider">';
