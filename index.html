@@ -1290,27 +1290,29 @@ function buildPayload() {
     const bp = document.getElementById('company_phone').value.trim();
     const mp = document.getElementById('company_mobile').value.trim();
     return {
-      type:         'Company',
-      company_name: document.getElementById('company_name').value,
-      phone:        bp || mp,
-      email:        document.getElementById('company_email').value,
-      abn:          document.getElementById('abn').value,
-      salesperson:  sp,
-      bill_to:      billTo,
-      ship_to:      shipTo,
-      recaptchaToken: grecaptcha.getResponse(),
+      type:                      'Company',
+      company_name:              document.getElementById('company_name').value,
+      phone:                     bp || mp,
+      email:                     document.getElementById('company_email').value,
+      abn:                       document.getElementById('abn').value,
+      salesperson:               sp,
+      bill_to:                   billTo,
+      ship_to:                   shipTo,
+      shipping_same_as_billing:  sameAddress,
+      recaptchaToken:            grecaptcha.getResponse(),
     };
   } else {
     return {
-      type:        'Individual',
-      first_name:  document.getElementById('first_name').value,
-      surname:     document.getElementById('surname').value,
-      phone:       document.getElementById('phone').value,
-      email:       document.getElementById('email').value,
-      salesperson: sp,
-      bill_to:     billTo,
-      ship_to:     shipTo,
-      recaptchaToken: grecaptcha.getResponse(),
+      type:                      'Individual',
+      first_name:                document.getElementById('first_name').value,
+      surname:                   document.getElementById('surname').value,
+      phone:                     document.getElementById('phone').value,
+      email:                     document.getElementById('email').value,
+      salesperson:               sp,
+      bill_to:                   billTo,
+      ship_to:                   shipTo,
+      shipping_same_as_billing:  sameAddress,
+      recaptchaToken:            grecaptcha.getResponse(),
     };
   }
 }
