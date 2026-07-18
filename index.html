@@ -408,12 +408,12 @@
 
   .salesperson-section { margin-top: 4px; }
 
-  /* "I'm not sure" checkbox */
   .unsure-check {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 10px;
+    margin-top: 2px;
+    margin-bottom: 4px;
     cursor: pointer;
     width: fit-content;
   }
@@ -685,6 +685,10 @@
       <div class="salesperson-section">
         <div class="field">
           <label>Which Choices Flooring consultant have you been speaking with? <span class="req">*</span></label>
+          <label class="unsure-check">
+            <input type="checkbox" id="salesperson_unsure" onchange="toggleSalespersonUnsure(this)">
+            <span class="unsure-check-text">I'm not sure</span>
+          </label>
           <select id="salesperson">
             <option value="">Select your consultant</option>
             
@@ -699,10 +703,6 @@
             <option>Sophie Jones</option>
           </select>
           <span class="field-error" id="err-salesperson">Please select your consultant or check "I'm not sure"</span>
-          <label class="unsure-check">
-            <input type="checkbox" id="salesperson_unsure" onchange="toggleSalespersonUnsure(this)">
-            <span class="unsure-check-text">I'm not sure</span>
-          </label>
         </div>
       </div>
 
