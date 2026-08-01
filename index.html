@@ -721,21 +721,33 @@
   </div>
 
   <!-- PAGE 2: Address -->
+  <!--
+    UI-ONLY CHANGE: The visible flow now asks for the "Billing Address" first,
+    with a toggle to say the Project Address is the same as it.
+    NOTE: The underlying input IDs, field IDs, and buildPayload()/buildReview()
+    logic are UNCHANGED — only the visible labels/order/copy on this page were
+    swapped so nothing else in the script needs to change.
+    - The first (always-visible) address block still uses the billing_* IDs,
+      but is now labelled "Billing Address".
+    - The toggle copy now reads "Project Address is the same as the Billing Address".
+    - The second (conditionally-shown) address block still uses the install_* IDs,
+      but is now labelled "Project Address".
+  -->
   <div class="page" id="page2">
     <div class="card">
       <div class="card-number">02</div>
       <div class="card-title">Address</div>
-      <div class="card-subtitle">Where is your project taking place?</div>
+      <div class="card-subtitle">Where should we send your invoice, and where is your project taking place?</div>
 
-      <!-- Project Address (was Billing Address — same BOS field: bill_to) -->
-      <div class="section-label">Project Address</div>
+      <!-- Billing Address (UI label only — still uses billing_* field IDs / bill_to-mapped values in payload, unchanged) -->
+      <div class="section-label">Billing Address</div>
       <div class="field-row single" style="margin-top: 16px;">
         <div class="field">
           <label>Search Address <span class="req">*</span></label>
           <div class="address-wrap">
-            <input type="text" id="billing_search" placeholder="Start typing your address…" autocomplete="off">
+            <input type="text" id="billing_search" placeholder="Start typing your billing address…" autocomplete="off">
           </div>
-          <span class="field-error" id="err-billing">Please enter your project address</span>
+          <span class="field-error" id="err-billing">Please enter your billing address</span>
         </div>
       </div>
       <div class="field-row single" id="billing-manual" style="display:none">
@@ -752,22 +764,22 @@
 
       <hr class="divider">
 
-      <!-- Toggle: Billing same as Project (was "Installation same as Billing") -->
+      <!-- Toggle: Project Address same as Billing (UI label only — same toggle/state logic, unchanged) -->
       <div class="toggle-wrap" id="sameAddressToggle" onclick="toggleSameAddress()">
         <div class="toggle on" id="sameToggle"></div>
-        <span class="toggle-text">Billing Address is the same as the Project Address</span>
+        <span class="toggle-text">Project Address is the same as the Billing Address</span>
       </div>
 
-      <!-- Billing Address (was Installation Address — same BOS field: ship_to) -->
+      <!-- Project Address (UI label only — still uses install_* field IDs / ship_to-mapped values in payload, unchanged) -->
       <div id="installation-section" style="display:none">
-        <div class="section-label">Billing Address</div>
+        <div class="section-label">Project Address</div>
         <div class="field-row single" style="margin-top: 16px;">
           <div class="field">
             <label>Search Address <span class="req">*</span></label>
             <div class="address-wrap">
-              <input type="text" id="install_search" placeholder="Start typing your billing address…" autocomplete="off">
+              <input type="text" id="install_search" placeholder="Start typing your project address…" autocomplete="off">
             </div>
-            <span class="field-error" id="err-install">Please enter your billing address</span>
+            <span class="field-error" id="err-install">Please enter your project address</span>
           </div>
         </div>
         <div class="field-row single" id="install-manual" style="display:none">
@@ -1253,14 +1265,14 @@ function buildReview() {
     html += reviewSection('My Details', `<strong>${document.getElementById('first_name').value} ${document.getElementById('surname').value}</strong><br>${document.getElementById('phone').value}<br>${document.getElementById('email').value}`);
   }
 
-  const projAddr = `${document.getElementById('billing_address1').value}, ${document.getElementById('billing_suburb').value} ${document.getElementById('billing_state').value} ${document.getElementById('billing_postcode').value}`;
-  html += reviewSection('Project Address', projAddr);
+  const billAddr = `${document.getElementById('billing_address1').value}, ${document.getElementById('billing_suburb').value} ${document.getElementById('billing_state').value} ${document.getElementById('billing_postcode').value}`;
+  html += reviewSection('Billing Address', billAddr);
 
   if (sameAddress) {
-    html += reviewSection('Billing Address', `<span style="color:var(--mid)">Same as project address</span>`);
+    html += reviewSection('Project Address', `<span style="color:var(--mid)">Same as billing address</span>`);
   } else {
-    const billAddr = `${document.getElementById('install_address1').value}, ${document.getElementById('install_suburb').value} ${document.getElementById('install_state').value} ${document.getElementById('install_postcode').value}`;
-    html += reviewSection('Billing Address', billAddr);
+    const projAddr = `${document.getElementById('install_address1').value}, ${document.getElementById('install_suburb').value} ${document.getElementById('install_state').value} ${document.getElementById('install_postcode').value}`;
+    html += reviewSection('Project Address', projAddr);
   }
 
   html += reviewSection('Choices Flooring Consultant Assisting Me', sp === "I'm not sure" ? `<span style="color:var(--mid)">I'm not sure — the team will follow up</span>` : sp);
