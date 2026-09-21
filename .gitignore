@@ -1,0 +1,3 @@
+# Apps Script source (contains the reCAPTCHA secret). The Pages workflow publishes
+# the whole repo, so this must never be committed.
+code.gs

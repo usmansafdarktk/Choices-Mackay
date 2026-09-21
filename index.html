@@ -915,7 +915,7 @@
 
       <div class="staff-notes-panel" id="staffNotesPanel" style="display:none">
         <span class="staff-notes-label">Staff Notes</span>
-        <textarea class="staff-notes-textarea" id="staffNotesText" placeholder="Anything worth passing on to the consultant about this customer or project…"></textarea>
+        <textarea class="staff-notes-textarea" id="staffNotesText" maxlength="5000" placeholder="Anything worth passing on to the consultant about this customer or project…"></textarea>
         <div class="staff-notes-actions">
           <button class="btn-notes-skip" onclick="cancelStaffNotes()">Cancel</button>
           <button class="btn-notes-send" id="staffNotesSendBtn" onclick="sendStaffNotes()">Send Notes</button>
@@ -942,6 +942,11 @@ let sameAddress = true;
 let billingFilled = false;
 let installFilled = false;
 let lastSubmission = null;
+// Kept across "try again" clicks so a retried submission reuses the same id;
+// cleared only after success or Start Again.
+let currentSubmissionId = null;
+let backupSaved = false;
+const CAPTCHA_ERROR_DEFAULT = 'Please complete the security check to continue';
 
 // ── Phone formatters ──────────────────────────────────────────────────────────
 // Mobile: XXXX XXX XXX (e.g. 0400 000 000)
@@ -1379,6 +1384,148 @@ function buildReview() {
   document.getElementById('review-content').innerHTML = html;
 }
 
+// ── Backup API (Railway / Postgres) ───────────────────────────────────────────
+// Every submission is saved here BEFORE it goes to Apps Script, so a failure in
+// Apps Script can never lose a customer's details. The backend is idempotent on
+// submission_id: a repeat returns 201 without creating a second row, so every
+// retry must reuse the same id.
+const BACKUP_API_URL      = 'https://ava-dashboard-production-choicesflooring.up.railway.app/submissions';
+const BACKUP_QUEUE_KEY    = 'cf_backup_queue_v1';
+const BACKUP_RETRY_DELAYS = [1000, 2000, 4000, 8000]; // waits between the 5 attempts
+const BACKUP_TIMEOUT_MS   = 15000;
+
+function newSubmissionId() {
+  if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // RFC4122 v4 fallback for older browsers
+  const b = new Uint8Array(16);
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(b);
+  else for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+  return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+}
+
+async function fetchWithTimeout(url, options, ms) {
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, { ...options, signal: ctrl.signal }); }
+  finally { clearTimeout(timer); }
+}
+
+// Returns 'saved' (201 — stored in Postgres), 'retry' (network/5xx/408/429 —
+// worth trying again later) or 'rejected' (other 4xx — retrying won't help).
+async function saveToBackup(submissionId, payload) {
+  const body = JSON.stringify({ submission_id: submissionId, payload });
+  let wait = 0;
+  for (let attempt = 0; attempt <= BACKUP_RETRY_DELAYS.length; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, wait));
+    wait = BACKUP_RETRY_DELAYS[attempt];
+    try {
+      const res = await fetchWithTimeout(BACKUP_API_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      }, BACKUP_TIMEOUT_MS);
+      if (res.status === 201) return 'saved';
+      if (res.status < 500 && res.status !== 408 && res.status !== 429) {
+        console.error('[BACKUP] Rejected with HTTP ' + res.status + ':', await res.text().catch(() => ''));
+        return 'rejected';
+      }
+      const retryAfter = parseInt(res.headers.get('Retry-After'), 10);
+      if (retryAfter > 0 && wait !== undefined) wait = Math.min(retryAfter * 1000, 8000);
+      console.warn('[BACKUP] Attempt ' + (attempt + 1) + ' failed with HTTP ' + res.status);
+    } catch (err) {
+      console.warn('[BACKUP] Attempt ' + (attempt + 1) + ' failed:', err);
+    }
+  }
+  return 'retry';
+}
+
+async function saveNotesToBackup(submissionId, notes) {
+  try {
+    const res = await fetchWithTimeout(BACKUP_API_URL + '/' + encodeURIComponent(submissionId) + '/notes', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ notes }),
+    }, BACKUP_TIMEOUT_MS);
+    return res.ok;
+  } catch (err) {
+    console.warn('[BACKUP] Notes save failed:', err);
+    return false;
+  }
+}
+
+// Local queue for submissions the backend hasn't confirmed yet. Items leave the
+// queue only on a 201. 'rejected' items stay (flagged) so the data is never
+// dropped, but they aren't retried.
+function readBackupQueue() {
+  try { return JSON.parse(localStorage.getItem(BACKUP_QUEUE_KEY) || '[]'); }
+  catch (_) { return []; }
+}
+
+function writeBackupQueue(queue) {
+  try { localStorage.setItem(BACKUP_QUEUE_KEY, JSON.stringify(queue)); }
+  catch (err) { console.error('[BACKUP] Could not write local queue:', err); }
+}
+
+function queueBackup(submissionId, payload, extra) {
+  const queue = readBackupQueue();
+  const index = queue.findIndex(i => i.submission_id === submissionId);
+  if (index === -1) queue.push({ submission_id: submissionId, payload, queued_at: new Date().toISOString(), ...extra });
+  else queue[index] = { ...queue[index], payload, ...extra };
+  writeBackupQueue(queue);
+}
+
+function removeFromBackupQueue(submissionId) {
+  const queue = readBackupQueue();
+  const rest  = queue.filter(i => i.submission_id !== submissionId);
+  if (rest.length !== queue.length) writeBackupQueue(rest);
+}
+
+let flushingBackupQueue = false;
+async function flushBackupQueue() {
+  if (flushingBackupQueue) return;
+  flushingBackupQueue = true;
+  try {
+    for (const item of readBackupQueue()) {
+      if (item.rejected) continue;
+      const result = await saveToBackup(item.submission_id, item.payload);
+      if (result === 'saved') {
+        if (item.notes && !(await saveNotesToBackup(item.submission_id, item.notes))) {
+          queueBackup(item.submission_id, item.payload, { notes: item.notes });
+          continue;
+        }
+        removeFromBackupQueue(item.submission_id);
+      } else if (result === 'rejected') {
+        queueBackup(item.submission_id, item.payload, { rejected: true });
+      }
+    }
+  } finally {
+    flushingBackupQueue = false;
+  }
+}
+
+// Returns { ok } plus captchaFailed when Apps Script rejected the reCAPTCHA token.
+// Uses text/plain (no CORS preflight); doPost reads the raw JSON body.
+async function sendToAppsScript(payload) {
+  try {
+    const res  = await fetchWithTimeout(APPS_SCRIPT_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body:    JSON.stringify(payload),
+    }, 30000);
+    const data = await res.json();
+    if (data && data.success) return { ok: true };
+    const message = (data && data.message) || ('HTTP ' + res.status);
+    console.error('[APPS SCRIPT] Submission not accepted:', message);
+    return { ok: false, captchaFailed: /recaptcha/i.test(message) };
+  } catch (err) {
+    console.error('[APPS SCRIPT] Request failed:', err);
+    return { ok: false, captchaFailed: false };
+  }
+}
+
 // ── Build payload ─────────────────────────────────────────────────────────────
 function buildPayload() {
   const isCompany = document.querySelector('input[name="custType"]:checked').value === 'Company';
@@ -1433,48 +1580,51 @@ function buildPayload() {
 // ── Submit ────────────────────────────────────────────────────────────────────
 async function submitForm() {
   const btn = document.getElementById('submitBtn');
+  if (btn.disabled) return;
   btn.disabled = true;
   document.getElementById('loadingOverlay').classList.add('show');
 
-  const payload = buildPayload();
+  if (!currentSubmissionId) currentSubmissionId = newSubmissionId();
+  const submissionId = currentSubmissionId;
+  const payload = { ...buildPayload(), submission_id: submissionId };
   lastSubmission = payload;
 
-  try {
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = APPS_SCRIPT_URL;
-    form.target = 'hidden_iframe';
+  // 1. Permanent backup first. If it can't be confirmed, keep a local copy that
+  //    is retried on later page loads — never block the customer on it.
+  const backup = await saveToBackup(submissionId, payload);
+  backupSaved = backup === 'saved';
+  if (backupSaved) removeFromBackupQueue(submissionId);
+  else queueBackup(submissionId, payload, backup === 'rejected' ? { rejected: true } : {});
 
-    const input = document.createElement('input');
-    input.type  = 'hidden';
-    input.name  = 'data';
-    input.value = JSON.stringify(payload);
-    form.appendChild(input);
-    document.body.appendChild(form);
+  // 2. Apps Script, as before.
+  const apps = await sendToAppsScript(payload);
+  document.getElementById('loadingOverlay').classList.remove('show');
 
-    let iframe = document.getElementById('hidden_iframe');
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.name = 'hidden_iframe';
-      iframe.id   = 'hidden_iframe';
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-    }
+  // The reCAPTCHA token expires ~2 min after the box is ticked on page 1, and a
+  // v2 checkbox can't be refreshed silently. Apps Script did nothing with this
+  // submission, so send the customer back to tick it again (same id).
+  if (apps.captchaFailed) {
+    if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
+    const captchaError = document.getElementById('captchaError');
+    captchaError.textContent = 'Your security check expired. Please tick the box again, then continue and submit.';
+    captchaError.classList.add('show');
+    btn.disabled = false;
+    goToPage(1);
+    return;
+  }
 
-    form.submit();
-    document.body.removeChild(form);
-
-    await new Promise(r => setTimeout(r, 3000));
-    document.getElementById('loadingOverlay').classList.remove('show');
+  if (apps.ok || backupSaved) {
+    currentSubmissionId = null;
     document.getElementById('reviewCard').style.display = 'none';
     document.getElementById('successCard').style.display = 'block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  } catch(err) {
-    document.getElementById('loadingOverlay').classList.remove('show');
-    alert('Submission failed. Please check your connection and try again.');
-    btn.disabled = false;
+    flushBackupQueue();
+    return;
   }
+
+  // Neither copy confirmed — keep everything on screen (a local copy is queued).
+  alert("Sorry, we couldn't submit your details just now. Please check your internet connection and press Confirm & Submit again, or let our team know.");
+  btn.disabled = false;
 }
 
 // ── Staff Notes ───────────────────────────────────────────────────────────────
@@ -1509,14 +1659,26 @@ function sendStaffNotes() {
     }),
   }).catch(() => {});
 
+  saveStaffNotesBackup(lastSubmission.submission_id, lastSubmission, backupSaved, notes);
+
   document.getElementById('staffNotesPanel').style.display = 'none';
   document.getElementById('staffNotesSent').style.display  = 'flex';
+}
+
+// The notes endpoint 404s until the submission row exists, so only call it once
+// the backend has confirmed; otherwise ride along with the queued submission.
+async function saveStaffNotesBackup(submissionId, payload, submissionSaved, notes) {
+  if (submissionSaved && await saveNotesToBackup(submissionId, notes)) return;
+  queueBackup(submissionId, payload, { notes });
 }
 
 // ── Reset form ────────────────────────────────────────────────────────────────
 function resetForm() {
   // Reset staff notes UI
   lastSubmission = null;
+  currentSubmissionId = null;
+  backupSaved = false;
+  document.getElementById('captchaError').textContent = CAPTCHA_ERROR_DEFAULT;
   document.getElementById('staffNotesText').value = '';
   document.getElementById('staffNotesPanel').style.display = 'none';
   document.getElementById('staffNotesSent').style.display  = 'none';
@@ -1571,6 +1733,10 @@ function resetForm() {
 
 // Expose the Maps callback globally before the API loads
 window.initAutocomplete = initAutocomplete;
+
+// Retry any submissions the backup API hasn't confirmed yet.
+flushBackupQueue();
+window.addEventListener('online', flushBackupQueue);
 </script>
 
 <!-- Google reCAPTCHA v2 -->
