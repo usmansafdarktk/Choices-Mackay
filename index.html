@@ -1596,7 +1596,17 @@ async function submitForm() {
   if (backupSaved) removeFromBackupQueue(submissionId);
   else queueBackup(submissionId, payload, backup === 'rejected' ? { rejected: true } : {});
 
-  // 2. Apps Script, as before.
+  // 2. Apps Script. Once the backup has confirmed, the data is safe, so don't
+  //    make the customer wait for doPost (captcha check, emails, sheets) —
+  //    fire it in the background and show success straight away.
+  if (backupSaved) {
+    sendToAppsScript(payload);
+    document.getElementById('loadingOverlay').classList.remove('show');
+    showSubmitSuccess();
+    return;
+  }
+
+  // Backup not confirmed — Apps Script is the only copy, so wait for its answer.
   const apps = await sendToAppsScript(payload);
   document.getElementById('loadingOverlay').classList.remove('show');
 
@@ -1613,18 +1623,22 @@ async function submitForm() {
     return;
   }
 
-  if (apps.ok || backupSaved) {
-    currentSubmissionId = null;
-    document.getElementById('reviewCard').style.display = 'none';
-    document.getElementById('successCard').style.display = 'block';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    flushBackupQueue();
+  if (apps.ok) {
+    showSubmitSuccess();
     return;
   }
 
   // Neither copy confirmed — keep everything on screen (a local copy is queued).
   alert("Sorry, we couldn't submit your details just now. Please check your internet connection and press Confirm & Submit again, or let our team know.");
   btn.disabled = false;
+}
+
+function showSubmitSuccess() {
+  currentSubmissionId = null;
+  document.getElementById('reviewCard').style.display = 'none';
+  document.getElementById('successCard').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  flushBackupQueue();
 }
 
 // ── Staff Notes ───────────────────────────────────────────────────────────────
