@@ -41,6 +41,26 @@ jobs:
           path: signature-app
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      # Stamp the deployed commit into index.html and publish it as version.json
+      # too, so a page left open on a tablet can notice it is out of date and
+      # reload itself instead of submitting with days-old JavaScript.
+      - name: Stamp build version
+        run: |
+          node -e "
+          const fs = require('fs');
+          const version = process.env.GITHUB_SHA;
+          const path = 'index.html';
+          let html = fs.readFileSync(path, 'utf8');
+          const count = html.split('__BUILD_VERSION__').length - 1;
+          if (count === 0) {
+            console.error('FATAL: __BUILD_VERSION__ placeholder not found in index.html');
+            process.exit(1);
+          }
+          html = html.split('__BUILD_VERSION__').join(version);
+          fs.writeFileSync(path, html, 'utf8');
+          fs.writeFileSync('version.json', JSON.stringify({ version }) + '\n', 'utf8');
+          console.log('Stamped ' + count + ' occurrence(s) with ' + version);
+          "
       - name: Inject Google Maps API key
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}

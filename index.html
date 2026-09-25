@@ -789,13 +789,6 @@
         </div>
       </div>
 
-      <!-- reCAPTCHA -->
-      <div class="captcha-wrap">
-        <span class="captcha-label">Security Check</span>
-        <div class="g-recaptcha" data-sitekey="6LfcwCYtAAAAAOh0O5VvXO8E0LK6Nf-yfSjv8LA7"></div>
-        <span class="captcha-error" id="captchaError">Please complete the security check to continue</span>
-      </div>
-
       <div class="nav-row">
         <div></div>
         <button class="btn btn-primary" onclick="goToPage2()">Continue →</button>
@@ -896,6 +889,16 @@
 
       <hr class="divider">
 
+      <!-- reCAPTCHA — kept on this page, directly above Submit, because the token
+           Google gives out is only valid for 2 minutes. On page 1 it had usually
+           expired by the time the customer reached this button. -->
+      <div class="captcha-wrap">
+        <span class="captcha-label">Security Check</span>
+        <div class="g-recaptcha" data-sitekey="6LfcwCYtAAAAAOh0O5VvXO8E0LK6Nf-yfSjv8LA7"
+             data-callback="onCaptchaSolved" data-expired-callback="onCaptchaExpired"></div>
+        <span class="captcha-error" id="captchaError">Please complete the security check to continue</span>
+      </div>
+
       <div class="nav-row">
         <button class="btn btn-secondary" onclick="goToPage(2)">← Back</button>
         <button class="btn btn-submit" id="submitBtn" onclick="submitForm()">Confirm &amp; Submit</button>
@@ -946,6 +949,9 @@ let lastSubmission = null;
 // cleared only after success or Start Again.
 let currentSubmissionId = null;
 let backupSaved = false;
+let submitting = false;
+// When the security check was ticked, so its 2-minute life can be checked.
+let captchaSolvedAt = null;
 const CAPTCHA_ERROR_DEFAULT = 'Please complete the security check to continue';
 
 // ── Phone formatters ──────────────────────────────────────────────────────────
@@ -1316,13 +1322,8 @@ function goToPage2() {
     showError('salesperson', true); valid = false;
   } else clearError('salesperson');
 
-  // Validate captcha
-  if (!grecaptcha.getResponse()) {
-    document.getElementById('captchaError').classList.add('show');
-    valid = false;
-  } else {
-    document.getElementById('captchaError').classList.remove('show');
-  }
+  // The security check now lives on page 3, right above Submit, so it is
+  // validated in submitForm instead of here.
 
   if (valid) goToPage(2);
 }
@@ -1527,7 +1528,7 @@ async function sendToAppsScript(payload) {
 }
 
 // ── Build payload ─────────────────────────────────────────────────────────────
-function buildPayload() {
+function buildPayload(captchaToken) {
   const isCompany = document.querySelector('input[name="custType"]:checked').value === 'Company';
   const sp = getSalespersonValue();
 
@@ -1559,7 +1560,7 @@ function buildPayload() {
       salesperson:  sp,
       bill_to:      shipTo,
       ship_to:      billTo,
-      recaptchaToken: grecaptcha.getResponse(),
+      recaptchaToken: captchaToken,
     };
   } else {
     return {
@@ -1571,22 +1572,83 @@ function buildPayload() {
       salesperson: sp,
       bill_to:     shipTo,
       ship_to:     billTo,
-      recaptchaToken: grecaptcha.getResponse(),
+      recaptchaToken: captchaToken,
     };
   }
 }
 
 
+// ── Security check (reCAPTCHA v2) ─────────────────────────────────────────────
+// Google's token is valid for 2 minutes only. The widget sits directly above the
+// Submit button and these callbacks record when it was ticked, so submitForm can
+// refuse to send a token that is expired or about to expire — instead of letting
+// Apps Script reject it later, which silently broke the whole pipeline.
+const CAPTCHA_MAX_AGE_MS = 105 * 1000;   // margin under Google's 120s
+
+function onCaptchaSolved() {
+  captchaSolvedAt = Date.now();
+  document.getElementById('captchaError').classList.remove('show');
+}
+
+function onCaptchaExpired() {
+  captchaSolvedAt = null;
+  showCaptchaAlarm('Your security check has expired. Please tick the box again.');
+}
+
+function showCaptchaAlarm(message) {
+  const el = document.getElementById('captchaError');
+  el.textContent = message;
+  el.classList.add('show');
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Returns a token only when one is present AND still comfortably inside its
+// 2-minute life; otherwise it resets the widget and raises the alarm on screen.
+function getFreshCaptchaToken() {
+  if (typeof grecaptcha === 'undefined') {
+    showCaptchaAlarm('The security check could not load. Please check your connection and refresh the page.');
+    return null;
+  }
+  const token = grecaptcha.getResponse();
+  if (!token) {
+    showCaptchaAlarm('Please complete the security check before submitting.');
+    return null;
+  }
+  if (!captchaSolvedAt || Date.now() - captchaSolvedAt > CAPTCHA_MAX_AGE_MS) {
+    grecaptcha.reset();
+    captchaSolvedAt = null;
+    showCaptchaAlarm('Your security check has expired. Please tick the box again, then press Confirm & Submit.');
+    return null;
+  }
+  document.getElementById('captchaError').classList.remove('show');
+  return token;
+}
+
 // ── Submit ────────────────────────────────────────────────────────────────────
+// The `submitting` flag also stops the auto-reload below from interrupting a
+// submission that is still in flight.
 async function submitForm() {
+  if (submitting) return;
+  submitting = true;
+  try { await runSubmit(); }
+  finally { submitting = false; }
+}
+
+async function runSubmit() {
   const btn = document.getElementById('submitBtn');
   if (btn.disabled) return;
+
+  // Nothing is sent until we hold a token that is present and still fresh, so an
+  // expired check is caught here, on screen, instead of downstream.
+  const captchaToken = getFreshCaptchaToken();
+  if (!captchaToken) return;
+
   btn.disabled = true;
   document.getElementById('loadingOverlay').classList.add('show');
 
   if (!currentSubmissionId) currentSubmissionId = newSubmissionId();
   const submissionId = currentSubmissionId;
-  const payload = { ...buildPayload(), submission_id: submissionId };
+  const payload = { ...buildPayload(captchaToken), submission_id: submissionId };
   lastSubmission = payload;
 
   // 1. Permanent backup first. If it can't be confirmed, keep a local copy that
@@ -1610,16 +1672,14 @@ async function submitForm() {
   const apps = await sendToAppsScript(payload);
   document.getElementById('loadingOverlay').classList.remove('show');
 
-  // The reCAPTCHA token expires ~2 min after the box is ticked on page 1, and a
-  // v2 checkbox can't be refreshed silently. Apps Script did nothing with this
-  // submission, so send the customer back to tick it again (same id).
+  // Backstop: the freshness check above should prevent this, but if Apps Script
+  // still rejects the token, ask for it again right here on the review page
+  // (same submission id, so nothing is duplicated).
   if (apps.captchaFailed) {
     if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
-    const captchaError = document.getElementById('captchaError');
-    captchaError.textContent = 'Your security check expired. Please tick the box again, then continue and submit.';
-    captchaError.classList.add('show');
+    captchaSolvedAt = null;
+    showCaptchaAlarm('Your security check was not accepted. Please tick the box again, then press Confirm & Submit.');
     btn.disabled = false;
-    goToPage(1);
     return;
   }
 
@@ -1740,10 +1800,106 @@ function resetForm() {
 
   // Reset captcha
   if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
+  captchaSolvedAt = null;
   document.getElementById('captchaError').classList.remove('show');
 
   goToPage(1);
+
+  // Start Again is the safest moment to pick up a new deploy: the form is empty
+  // and the next customer hasn't started yet.
+  if (updateAvailable) reloadIfSafe('update');
 }
+
+// ── Keep the page up to date ───────────────────────────────────────────────────
+// A tablet can keep this page open for days, and JavaScript already loaded never
+// changes by itself — that is how submissions went out with no submission_id
+// after the backup save was added. So the page compares its own build with the
+// deployed one (version.json, written by the deploy workflow) and reloads itself.
+// It also reloads after a long idle spell, so each customer effectively starts on
+// a freshly loaded page. A reload only ever happens when nobody is part-way
+// through the form: page 1, nothing filled in, and no submission in flight.
+const BUILD_VERSION    = '__BUILD_VERSION__';   // replaced at deploy with the commit sha
+const VERSION_CHECK_MS = 10 * 60 * 1000;
+const IDLE_RELOAD_MS   = 20 * 60 * 1000;
+const MIN_PAGE_AGE_MS  = 60 * 60 * 1000;        // don't idle-reload a page that just loaded
+const RELOAD_GUARD_MS  = 15 * 60 * 1000;
+const RELOAD_GUARD_KEY = 'cf_reload_guard';
+
+const pageLoadedAt = Date.now();
+let lastActivityAt = Date.now();
+let updateAvailable = false;
+
+function formIsUntouched() {
+  for (const el of document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"]')) {
+    if (el.value.trim()) return false;
+  }
+  for (const el of document.querySelectorAll('select')) {
+    if (el.value) return false;
+  }
+  if (document.getElementById('salesperson_unsure').checked) return false;
+  if (typeof grecaptcha !== 'undefined' && grecaptcha.getResponse()) return false;
+  return !billingFilled && !installFilled;
+}
+
+function safeToReload() {
+  if (submitting || flushingBackupQueue) return false;
+  // Staff may still be typing notes on the success screen.
+  if (document.getElementById('successCard').style.display === 'block') return false;
+  if (!document.getElementById('page1').classList.contains('active')) return false;
+  return formIsUntouched();
+}
+
+function reloadIfSafe(reason) {
+  if (!safeToReload()) return;
+  if (reason === 'update') {
+    // GitHub's CDN can keep serving the old file for a few minutes, so don't
+    // reload again and again while waiting for the new one to appear.
+    let last = 0;
+    try { last = parseInt(sessionStorage.getItem(RELOAD_GUARD_KEY) || '0', 10) || 0; } catch (_) {}
+    if (Date.now() - last < RELOAD_GUARD_MS) return;
+    try { sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now())); } catch (_) {}
+  }
+  console.log('[UPDATE] Reloading the form (' + reason + ')');
+  location.reload();
+}
+
+async function checkForUpdate() {
+  if (BUILD_VERSION.slice(0, 2) === '__') return; // unstamped local copy
+  try {
+    const res = await fetchWithTimeout('version.json?t=' + Date.now(), { cache: 'no-store' }, 10000);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || !data.version || data.version === BUILD_VERSION) return;
+    if (!updateAvailable) console.log('[UPDATE] New version deployed (' + String(data.version).slice(0, 7) + ')');
+    updateAvailable = true;
+    reloadIfSafe('update');
+  } catch (err) {
+    // Offline or blocked — the next check will pick it up.
+  }
+}
+
+['click', 'keydown', 'input', 'touchstart', 'focusin'].forEach(evt => {
+  document.addEventListener(evt, () => { lastActivityAt = Date.now(); }, { passive: true });
+});
+
+setInterval(() => {
+  if (updateAvailable) reloadIfSafe('update');
+  if (Date.now() - lastActivityAt >= IDLE_RELOAD_MS && Date.now() - pageLoadedAt >= MIN_PAGE_AGE_MS) {
+    reloadIfSafe('idle');
+  }
+}, 60 * 1000);
+
+setInterval(checkForUpdate, VERSION_CHECK_MS);
+
+// The tablet waking up / the tab coming back into view is the most likely moment
+// for a stale page to be about to serve the next customer.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  lastActivityAt = Date.now();
+  checkForUpdate();
+});
+window.addEventListener('pageshow', checkForUpdate);
+checkForUpdate();
 
 // Expose the Maps callback globally before the API loads
 window.initAutocomplete = initAutocomplete;
