@@ -281,12 +281,6 @@
   .field-error { font-size: 11px; color: var(--error); display: none; font-weight: 500; }
   .field-error.show { display: block; }
 
-  .field-hint {
-    font-size: 11px;
-    color: var(--light);
-    font-weight: 400;
-  }
-
   /* ── Address autocomplete (new Places API custom dropdown) ─ */
   .address-wrap { position: relative; }
   .addr-suggestions {
@@ -703,12 +697,12 @@
         <div class="field-row">
           <div class="field">
             <label>First Name <span class="req">*</span></label>
-            <input type="text" id="first_name" placeholder="Jane">
+            <input type="text" id="first_name" autocapitalize="words" placeholder="Jane">
             <span class="field-error" id="err-first_name">Required</span>
           </div>
           <div class="field">
             <label>Surname <span class="req">*</span></label>
-            <input type="text" id="surname" placeholder="Smith">
+            <input type="text" id="surname" autocapitalize="words" placeholder="Smith">
             <span class="field-error" id="err-surname">Required</span>
           </div>
         </div>
@@ -716,7 +710,6 @@
           <div class="field">
             <label>Mobile Phone <span class="req">*</span></label>
             <input type="tel" id="phone" placeholder="0400 000 000" oninput="formatMobilePhone(this)" maxlength="12">
-            <span class="field-hint">Format: 0400 000 000</span>
             <span class="field-error" id="err-phone">Required</span>
           </div>
           <div class="field">
@@ -732,7 +725,7 @@
         <div class="field-row single">
           <div class="field">
             <label>Company Name <span class="req">*</span></label>
-            <input type="text" id="company_name" placeholder="Acme Pty Ltd">
+            <input type="text" id="company_name" autocapitalize="words" placeholder="Acme Pty Ltd">
             <span class="field-error" id="err-company_name">Required</span>
           </div>
         </div>
@@ -740,13 +733,11 @@
           <div class="field">
             <label>Business Phone <span class="opt">(at least one phone required)</span></label>
             <input type="tel" id="company_phone" placeholder="07 4942 0700" oninput="formatBusinessPhone(this)" maxlength="12">
-            <span class="field-hint">Format: 07 4942 0700</span>
             <span class="field-error" id="err-company_phone">Please provide at least one phone number</span>
           </div>
           <div class="field">
             <label>Mobile Phone</label>
             <input type="tel" id="company_mobile" placeholder="0400 000 000" oninput="formatMobilePhone(this)" maxlength="12">
-            <span class="field-hint">Format: 0400 000 000</span>
           </div>
         </div>
         <div class="field-row">
@@ -829,11 +820,11 @@
       <div class="field-row single" id="billing-manual" style="display:none">
         <div class="field">
           <label>Street Address</label>
-          <input type="text" id="billing_address1" placeholder="123 Main Street">
+          <input type="text" id="billing_address1" autocapitalize="words" placeholder="123 Main Street">
         </div>
       </div>
       <div class="field-row triple" id="billing-details" style="display:none">
-        <div class="field"><label>Suburb</label><input type="text" id="billing_suburb"></div>
+        <div class="field"><label>Suburb</label><input type="text" id="billing_suburb" autocapitalize="words"></div>
         <div class="field"><label>State</label><input type="text" id="billing_state"></div>
         <div class="field"><label>Postcode</label><input type="text" id="billing_postcode"></div>
       </div>
@@ -861,11 +852,11 @@
         <div class="field-row single" id="install-manual" style="display:none">
           <div class="field">
             <label>Street Address</label>
-            <input type="text" id="install_address1" placeholder="456 Other Street">
+            <input type="text" id="install_address1" autocapitalize="words" placeholder="456 Other Street">
           </div>
         </div>
         <div class="field-row triple" id="install-details" style="display:none">
-          <div class="field"><label>Suburb</label><input type="text" id="install_suburb"></div>
+          <div class="field"><label>Suburb</label><input type="text" id="install_suburb" autocapitalize="words"></div>
           <div class="field"><label>State</label><input type="text" id="install_state"></div>
           <div class="field"><label>Postcode</label><input type="text" id="install_postcode"></div>
         </div>
@@ -970,6 +961,30 @@ function formatBusinessPhone(input) {
   else if (val.length > 2) val = val.slice(0,2) + ' ' + val.slice(2);
   input.value = val;
 }
+
+// ── Capitalise names & addresses ──────────────────────────────────────────────
+// Customers sometimes type "jane smith" or "Choices flooring mackay". For every
+// input marked autocapitalize="words", raise the first letter of each word (after
+// a space or hyphen, plus O'Brien-style names) and leave the rest alone, so
+// "McDonald" and "ABC Pty Ltd" keep their casing. Runs when the customer leaves
+// the box rather than on every keystroke, which can fight Android autocorrect.
+function capitalizeWords(str) {
+  return str
+    .replace(/(^|[\s-])(\p{Ll})/gu, (m, pre, ch) => pre + ch.toUpperCase())
+    .replace(/(^|[\s-])(\p{Lu})(['’])(\p{Ll})/gu, (m, pre, first, apos, ch) => pre + first + apos + ch.toUpperCase());
+}
+
+// Also run before the review, to catch values the script copies in itself
+// (e.g. a typed address moved into Street Address when no suggestion is picked).
+function capitalizeFields() {
+  document.querySelectorAll('input[autocapitalize="words"]').forEach(el => {
+    el.value = capitalizeWords(el.value);
+  });
+}
+
+document.querySelectorAll('input[autocapitalize="words"]').forEach(el => {
+  el.addEventListener('change', () => { el.value = capitalizeWords(el.value); });
+});
 
 // ── Salesperson "I'm not sure" ────────────────────────────────────────────────
 function toggleSalespersonUnsure(checkbox) {
@@ -1345,7 +1360,7 @@ function goToPage3() {
   } else {
     document.getElementById('err-install').classList.remove('show');
   }
-  if (valid) { buildReview(); goToPage(3); }
+  if (valid) { capitalizeFields(); buildReview(); goToPage(3); }
 }
 
 // ── Review builder ────────────────────────────────────────────────────────────
