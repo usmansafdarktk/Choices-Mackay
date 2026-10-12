@@ -253,7 +253,7 @@
     <span class="brand-word"><strong>Choices</strong><span>FLOORING</span></span>
   </div>
   <div class="header-eyebrow">Mackay Store</div>
-  <h1>Complete Customer Entry</h1>
+  <h1 id="pageTitle">Complete Customer Entry</h1>
   <div class="accent-line"></div>
 </div>
 
@@ -349,6 +349,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (!data.success || !data.customer) { showState('invalid'); return; }
     customerData = data.customer;
     renderSummary(customerData);
+    if (customerData.mode === 'tc_update') showUpdateMode(customerData);
     showState('form');
   } catch(err) {
     showState('invalid');
@@ -372,6 +373,31 @@ function renderSummary(p) {
     if (row === null) return '<hr class="summary-divider">';
     return `<div class="summary-label">${row[0]}</div><div class="summary-value">${row[1]}</div>`;
   }).join('');
+}
+
+// Trade Centre company (BRD FR-5.2): already created in BOS as COD /
+// Commercial - Non Account at the counter. The consultant reviews it here and
+// any change is written to the existing BOS customer — nothing new is created.
+function showUpdateMode(p) {
+  document.getElementById('pageTitle').textContent = 'Review Trade Centre Customer';
+  document.getElementById('submitBtn').textContent = 'Update in BOS →';
+  const note = document.createElement('div');
+  note.className = 'summary-card';
+  note.innerHTML = '<div class="summary-title">Already in BOS</div><p style="margin:0;font-size:14px;line-height:1.6;color:var(--mid)">'
+    + 'This company signed up at the Trade Centre counter and was created in BOS as <strong>'
+    + (p.payment_terms || 'COD') + '</strong> / <strong>' + (p.customer_type || 'Commercial - Non Account') + '</strong>. '
+    + 'Change the payment terms or customer type below if they should be different. Leaving them as they are changes nothing.</p>';
+  const grid = document.getElementById('summaryGrid');
+  grid.closest('.summary-card').insertAdjacentElement('afterend', note);
+  preselect('payment', p.payment_terms || 'COD');
+  preselect('type', p.customer_type || 'Commercial - Non Account');
+}
+
+function preselect(group, value) {
+  const gridId = group === 'payment' ? 'paymentGrid' : 'typeGrid';
+  document.querySelectorAll('#' + gridId + ' .opt-btn').forEach(b => {
+    if ((b.getAttribute('onclick') || '').indexOf("'" + value + "'") !== -1) select(group, value, b);
+  });
 }
 
 function select(group, value, btn) {
@@ -419,8 +445,9 @@ function submitEntry() {
   }).catch(() => {});
 
   const name = customerData ? customerData.company_name : 'Customer';
-  document.getElementById('successText').textContent =
-    `All done — ${name} has been submitted. They will receive a confirmation email once their account is ready in BOS.`;
+  document.getElementById('successText').textContent = customerData && customerData.mode === 'tc_update'
+    ? `Sent — ${name} will be updated in BOS to ${selectedPayment} / ${selectedType}. You will get an email once BOS confirms.`
+    : `All done — ${name} has been submitted. They will receive a confirmation email once their account is ready in BOS.`;
   showState('success');
 }
 

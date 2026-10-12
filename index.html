@@ -929,6 +929,16 @@
 </div>
 
 <script>
+// Trade Centre counter: the tablet opens this form as …/?tc=TC-00012, the sale's
+// number. It travels with the submission so the counter matches the sign-up to
+// the sale, and the registration script can create a Trade Centre company in BOS
+// straight away (BRD FR-5.2). Public sign-ups have no tc and are unchanged.
+const TC_NUMBER = (() => {
+  try {
+    const v = (new URLSearchParams(window.location.search).get('tc') || '').trim().toUpperCase();
+    return /^TC-?\d{1,7}$/.test(v) ? v : '';
+  } catch (e) { return ''; }
+})();
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzovDi5NHJwetKr9PX-gXeJOlvh0qrGLpqVXI5Xi0FHaC7jIt3BXcfe4xVYs1k2uLzjiA/exec';
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -1663,7 +1673,7 @@ async function runSubmit() {
 
   if (!currentSubmissionId) currentSubmissionId = newSubmissionId();
   const submissionId = currentSubmissionId;
-  const payload = { ...buildPayload(captchaToken), submission_id: submissionId };
+  const payload = { ...buildPayload(captchaToken), submission_id: submissionId, ...(TC_NUMBER ? { tc_number: TC_NUMBER } : {}) };
   lastSubmission = payload;
 
   // 1. Permanent backup first. If it can't be confirmed, keep a local copy that
