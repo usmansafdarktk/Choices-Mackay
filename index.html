@@ -1633,10 +1633,7 @@ function showCaptchaAlarm(message) {
 // Returns a token only when one is present AND still comfortably inside its
 // 2-minute life; otherwise it resets the widget and raises the alarm on screen.
 function getFreshCaptchaToken() {
-  if (typeof grecaptcha === 'undefined') {
-    showCaptchaAlarm('The security check could not load. Please check your connection and refresh the page.');
-    return null;
-  }
+  if (typeof grecaptcha === 'undefined') return null;   // the details are still sent (runSubmit)
   const token = grecaptcha.getResponse();
   if (!token) {
     showCaptchaAlarm('Please complete the security check before submitting.');
@@ -1666,17 +1663,20 @@ async function runSubmit() {
   const btn = document.getElementById('submitBtn');
   if (btn.disabled) return;
 
-  // Nothing is sent until we hold a token that is present and still fresh, so an
-  // expired check is caught here, on screen, instead of downstream.
+  // A fresh tick, or null when there is none, it has expired or the box could
+  // not load (the alarm on screen then says what to do). The details are sent
+  // either way, so they always reach the dashboard; it holds a sign-up whose
+  // tick has not passed and does nothing with it until the tick passes on a
+  // re-send or a person lets it through.
   const captchaToken = getFreshCaptchaToken();
-  if (!captchaToken) return;
+  const tickBoxMissing = typeof grecaptcha === 'undefined';
 
   btn.disabled = true;
   document.getElementById('loadingOverlay').classList.add('show');
 
   if (!currentSubmissionId) currentSubmissionId = newSubmissionId();
   const submissionId = currentSubmissionId;
-  const payload = { ...buildPayload(captchaToken), submission_id: submissionId, ...(TC_NUMBER ? { tc_number: TC_NUMBER } : {}) };
+  const payload = { ...buildPayload(captchaToken || ''), submission_id: submissionId, ...(TC_NUMBER ? { tc_number: TC_NUMBER } : {}) };
   lastSubmission = payload;
 
   // Send it to the dashboard. If it can't be confirmed, keep a local copy that
@@ -1687,13 +1687,24 @@ async function runSubmit() {
   else queueBackup(submissionId, payload, saved.status === 'rejected' ? { rejected: true } : {});
   document.getElementById('loadingOverlay').classList.remove('show');
 
-  // Saved, but Google did not accept the tick (the freshness check above should
-  // prevent this). Ask for it again right here on the review page; the re-send
-  // uses the same submission id, so nothing is duplicated.
+  // Saved. 'held' means the dashboard could not check the tick itself (its own
+  // problem, not the customer's): the team checks it, so the customer is done.
+  // So are they when the tick box never loaded: nothing on this page can help,
+  // and the dashboard reports the sign-up to the admin.
+  if (backupSaved && (saved.captcha === 'held' || (saved.captcha === 'failed' && tickBoxMissing))) {
+    showSubmitSuccess();
+    return;
+  }
+
+  // Saved, but without a passing tick: not ticked, expired, or not accepted by
+  // Google. Ask for it again right here on the review page; the re-send uses the
+  // same submission id, so nothing is duplicated.
   if (backupSaved && saved.captcha === 'failed') {
-    if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
-    captchaSolvedAt = null;
-    showCaptchaAlarm('Your security check was not accepted. Please tick the box again, then press Confirm & Submit.');
+    if (captchaToken) {               // ticked, but Google refused it
+      grecaptcha.reset();
+      captchaSolvedAt = null;
+      showCaptchaAlarm('Your security check was not accepted. Please tick the box again, then press Confirm & Submit.');
+    }                                 // otherwise the alarm from getFreshCaptchaToken is already showing
     btn.disabled = false;
     return;
   }
