@@ -931,7 +931,7 @@
 <script>
 // Trade Centre counter: the tablet opens this form as …/?tc=TC-00012, the sale's
 // number. It travels with the submission so the counter matches the sign-up to
-// the sale, and the registration script can create a Trade Centre company in BOS
+// the sale, and the Ava dashboard can create a Trade Centre company in BOS
 // straight away (BRD FR-5.2). Public sign-ups have no tc and are unchanged.
 const TC_NUMBER = (() => {
   try {
@@ -939,7 +939,6 @@ const TC_NUMBER = (() => {
     return /^TC-?\d{1,7}$/.test(v) ? v : '';
   } catch (e) { return ''; }
 })();
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzovDi5NHJwetKr9PX-gXeJOlvh0qrGLpqVXI5Xi0FHaC7jIt3BXcfe4xVYs1k2uLzjiA/exec';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let sameAddress = true;
@@ -1045,6 +1044,19 @@ function toggleSameAddress() {
 // new customers and (b) backed by the legacy Places API that is not enabled on
 // this project. We render our own dropdown so the existing inputs, styling,
 // validation and manual‑entry fallback all keep working unchanged.
+const BILLING_FIELDS = {
+  address1: 'billing_address1', suburb: 'billing_suburb',
+  state: 'billing_state', postcode: 'billing_postcode',
+  manualRow: 'billing-manual', detailsRow: 'billing-details',
+  filled: function() { billingFilled = true; }
+};
+const INSTALL_FIELDS = {
+  address1: 'install_address1', suburb: 'install_suburb',
+  state: 'install_state', postcode: 'install_postcode',
+  manualRow: 'install-manual', detailsRow: 'install-details',
+  filled: function() { installFilled = true; }
+};
+
 function initAutocomplete() {
   console.log('[AUTOCOMPLETE] 1. initAutocomplete entered');
   console.log('[AUTOCOMPLETE] 1a. typeof google =', typeof google);
@@ -1065,12 +1077,7 @@ function initAutocomplete() {
 
   try {
     console.log('[AUTOCOMPLETE] 3. Calling setupAutocomplete for billing_search');
-    setupAutocomplete('billing_search', {
-      address1: 'billing_address1', suburb: 'billing_suburb',
-      state: 'billing_state', postcode: 'billing_postcode',
-      manualRow: 'billing-manual', detailsRow: 'billing-details',
-      filled: function() { billingFilled = true; }
-    });
+    setupAutocomplete('billing_search', BILLING_FIELDS);
     console.log('[AUTOCOMPLETE] 3a. setupAutocomplete billing_search returned OK');
   } catch (err) {
     console.error('[AUTOCOMPLETE] 3b. setupAutocomplete billing_search THREW:', err);
@@ -1078,12 +1085,7 @@ function initAutocomplete() {
 
   try {
     console.log('[AUTOCOMPLETE] 4. Calling setupAutocomplete for install_search');
-    setupAutocomplete('install_search', {
-      address1: 'install_address1', suburb: 'install_suburb',
-      state: 'install_state', postcode: 'install_postcode',
-      manualRow: 'install-manual', detailsRow: 'install-details',
-      filled: function() { installFilled = true; }
-    });
+    setupAutocomplete('install_search', INSTALL_FIELDS);
     console.log('[AUTOCOMPLETE] 4a. setupAutocomplete install_search returned OK');
   } catch (err) {
     console.error('[AUTOCOMPLETE] 4b. setupAutocomplete install_search THREW:', err);
@@ -1260,8 +1262,19 @@ function setupAutocomplete(inputId, fields) {
   });
   console.log('[AUTOCOMPLETE][' + inputId + '] E. keydown event listener attached');
 
+  input.addEventListener('blur', function() { setTimeout(closeList, 150); });
+  console.log('[AUTOCOMPLETE][' + inputId + '] F. blur event listener attached');
+  console.log('[AUTOCOMPLETE][' + inputId + '] G. setupAutocomplete COMPLETE for', inputId);
+}
+
+// Typing an address and moving on, without picking a suggestion, fills the
+// address fields with what was typed for the customer to complete. This is set
+// up when the page loads, not when Google's address search does, so the form
+// still works when that search is unavailable (blocked, out of quota, or down).
+function setupManualEntry(inputId, fields) {
+  var input = document.getElementById(inputId);
+  if (!input) return;
   input.addEventListener('blur', function() {
-    setTimeout(closeList, 150);
     var alreadyFilled = document.getElementById(fields.address1).value.trim() !== '';
     if (alreadyFilled) return;
     var val = input.value.trim();
@@ -1271,9 +1284,9 @@ function setupAutocomplete(inputId, fields) {
     document.getElementById(fields.detailsRow).style.display = 'grid';
     fields.filled();
   });
-  console.log('[AUTOCOMPLETE][' + inputId + '] F. blur event listener attached');
-  console.log('[AUTOCOMPLETE][' + inputId + '] G. setupAutocomplete COMPLETE for', inputId);
 }
+setupManualEntry('billing_search', BILLING_FIELDS);
+setupManualEntry('install_search', INSTALL_FIELDS);
 
 function applyAddressComponents(components, fields) {
   var streetNumber = '', route = '', suburb = '', state = '', postcode = '';
@@ -1410,12 +1423,14 @@ function buildReview() {
   document.getElementById('review-content').innerHTML = html;
 }
 
-// ── Backup API (Railway / Postgres) ───────────────────────────────────────────
-// Every submission is saved here BEFORE it goes to Apps Script, so a failure in
-// Apps Script can never lose a customer's details. The backend is idempotent on
+// ── Ava dashboard (Railway / Postgres) ────────────────────────────────────────
+// Every sign-up goes to the Ava dashboard, which saves it, then checks the
+// security tick and does the rest (BOS, emails). The backend is idempotent on
 // submission_id: a repeat returns 201 without creating a second row, so every
-// retry must reuse the same id.
-const BACKUP_API_URL      = 'https://ava-dashboard-production-choicesflooring.up.railway.app/submissions';
+// retry must reuse the same id. The staging copy the dashboard serves for
+// testing sets window.CF_SUBMISSIONS_API to its own address.
+const SUBMISSIONS_API_URL = window.CF_SUBMISSIONS_API ||
+  'https://ava-dashboard-production-choicesflooring.up.railway.app/submissions';
 const BACKUP_QUEUE_KEY    = 'cf_backup_queue_v1';
 const BACKUP_RETRY_DELAYS = [1000, 2000, 4000, 8000]; // waits between the 5 attempts
 const BACKUP_TIMEOUT_MS   = 15000;
@@ -1439,8 +1454,11 @@ async function fetchWithTimeout(url, options, ms) {
   finally { clearTimeout(timer); }
 }
 
-// Returns 'saved' (201 — stored in Postgres), 'retry' (network/5xx/408/429 —
-// worth trying again later) or 'rejected' (other 4xx — retrying won't help).
+// Returns { status } — 'saved' (201, stored in Postgres), 'retry' (network /
+// 5xx / 408 / 429, worth trying again later) or 'rejected' (other 4xx, retrying
+// won't help) — and, once saved, { captcha: 'ok' | 'failed' }: whether Google
+// accepted the security tick. A saved sign-up whose tick failed waits on the
+// dashboard until the customer ticks again and it is re-sent with the same id.
 async function saveToBackup(submissionId, payload) {
   const body = JSON.stringify({ submission_id: submissionId, payload });
   let wait = 0;
@@ -1448,15 +1466,18 @@ async function saveToBackup(submissionId, payload) {
     if (attempt > 0) await new Promise(r => setTimeout(r, wait));
     wait = BACKUP_RETRY_DELAYS[attempt];
     try {
-      const res = await fetchWithTimeout(BACKUP_API_URL, {
+      const res = await fetchWithTimeout(SUBMISSIONS_API_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
       }, BACKUP_TIMEOUT_MS);
-      if (res.status === 201) return 'saved';
+      if (res.status === 201) {
+        const data = await res.json().catch(() => ({}));
+        return { status: 'saved', captcha: (data && data.captcha) || 'ok' };
+      }
       if (res.status < 500 && res.status !== 408 && res.status !== 429) {
         console.error('[BACKUP] Rejected with HTTP ' + res.status + ':', await res.text().catch(() => ''));
-        return 'rejected';
+        return { status: 'rejected' };
       }
       const retryAfter = parseInt(res.headers.get('Retry-After'), 10);
       if (retryAfter > 0 && wait !== undefined) wait = Math.min(retryAfter * 1000, 8000);
@@ -1465,12 +1486,12 @@ async function saveToBackup(submissionId, payload) {
       console.warn('[BACKUP] Attempt ' + (attempt + 1) + ' failed:', err);
     }
   }
-  return 'retry';
+  return { status: 'retry' };
 }
 
 async function saveNotesToBackup(submissionId, notes) {
   try {
-    const res = await fetchWithTimeout(BACKUP_API_URL + '/' + encodeURIComponent(submissionId) + '/notes', {
+    const res = await fetchWithTimeout(SUBMISSIONS_API_URL + '/' + encodeURIComponent(submissionId) + '/notes', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ notes }),
@@ -1516,7 +1537,9 @@ async function flushBackupQueue() {
   try {
     for (const item of readBackupQueue()) {
       if (item.rejected) continue;
-      const result = await saveToBackup(item.submission_id, item.payload);
+      // A queued copy is saved even if its old tick is no longer accepted: it
+      // then waits on the dashboard, where staff can let it through.
+      const result = (await saveToBackup(item.submission_id, item.payload)).status;
       if (result === 'saved') {
         if (item.notes && !(await saveNotesToBackup(item.submission_id, item.notes))) {
           queueBackup(item.submission_id, item.payload, { notes: item.notes });
@@ -1529,26 +1552,6 @@ async function flushBackupQueue() {
     }
   } finally {
     flushingBackupQueue = false;
-  }
-}
-
-// Returns { ok } plus captchaFailed when Apps Script rejected the reCAPTCHA token.
-// Uses text/plain (no CORS preflight); doPost reads the raw JSON body.
-async function sendToAppsScript(payload) {
-  try {
-    const res  = await fetchWithTimeout(APPS_SCRIPT_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    JSON.stringify(payload),
-    }, 30000);
-    const data = await res.json();
-    if (data && data.success) return { ok: true };
-    const message = (data && data.message) || ('HTTP ' + res.status);
-    console.error('[APPS SCRIPT] Submission not accepted:', message);
-    return { ok: false, captchaFailed: /recaptcha/i.test(message) };
-  } catch (err) {
-    console.error('[APPS SCRIPT] Request failed:', err);
-    return { ok: false, captchaFailed: false };
   }
 }
 
@@ -1607,7 +1610,7 @@ function buildPayload(captchaToken) {
 // Google's token is valid for 2 minutes only. The widget sits directly above the
 // Submit button and these callbacks record when it was ticked, so submitForm can
 // refuse to send a token that is expired or about to expire — instead of letting
-// Apps Script reject it later, which silently broke the whole pipeline.
+// the dashboard reject it after the customer has left.
 const CAPTCHA_MAX_AGE_MS = 105 * 1000;   // margin under Google's 120s
 
 function onCaptchaSolved() {
@@ -1676,31 +1679,18 @@ async function runSubmit() {
   const payload = { ...buildPayload(captchaToken), submission_id: submissionId, ...(TC_NUMBER ? { tc_number: TC_NUMBER } : {}) };
   lastSubmission = payload;
 
-  // 1. Permanent backup first. If it can't be confirmed, keep a local copy that
-  //    is retried on later page loads — never block the customer on it.
-  const backup = await saveToBackup(submissionId, payload);
-  backupSaved = backup === 'saved';
+  // Send it to the dashboard. If it can't be confirmed, keep a local copy that
+  // is retried on later page loads as well.
+  const saved = await saveToBackup(submissionId, payload);
+  backupSaved = saved.status === 'saved';
   if (backupSaved) removeFromBackupQueue(submissionId);
-  else queueBackup(submissionId, payload, backup === 'rejected' ? { rejected: true } : {});
-
-  // 2. Apps Script. Once the backup has confirmed, the data is safe, so don't
-  //    make the customer wait for doPost (captcha check, emails, sheets) —
-  //    fire it in the background and show success straight away.
-  if (backupSaved) {
-    sendToAppsScript(payload);
-    document.getElementById('loadingOverlay').classList.remove('show');
-    showSubmitSuccess();
-    return;
-  }
-
-  // Backup not confirmed — Apps Script is the only copy, so wait for its answer.
-  const apps = await sendToAppsScript(payload);
+  else queueBackup(submissionId, payload, saved.status === 'rejected' ? { rejected: true } : {});
   document.getElementById('loadingOverlay').classList.remove('show');
 
-  // Backstop: the freshness check above should prevent this, but if Apps Script
-  // still rejects the token, ask for it again right here on the review page
-  // (same submission id, so nothing is duplicated).
-  if (apps.captchaFailed) {
+  // Saved, but Google did not accept the tick (the freshness check above should
+  // prevent this). Ask for it again right here on the review page; the re-send
+  // uses the same submission id, so nothing is duplicated.
+  if (backupSaved && saved.captcha === 'failed') {
     if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
     captchaSolvedAt = null;
     showCaptchaAlarm('Your security check was not accepted. Please tick the box again, then press Confirm & Submit.');
@@ -1708,12 +1698,12 @@ async function runSubmit() {
     return;
   }
 
-  if (apps.ok) {
+  if (backupSaved) {
     showSubmitSuccess();
     return;
   }
 
-  // Neither copy confirmed — keep everything on screen (a local copy is queued).
+  // Not confirmed — keep everything on screen (a local copy is queued).
   alert("Sorry, we couldn't submit your details just now. Please check your internet connection and press Confirm & Submit again, or let our team know.");
   btn.disabled = false;
 }
@@ -1747,17 +1737,7 @@ function sendStaffNotes() {
   sendBtn.disabled = true;
   sendBtn.textContent = 'Sending…';
 
-  fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({
-      action: 'staffNotes',
-      ...lastSubmission,
-      notes,
-    }),
-  }).catch(() => {});
-
+  // The dashboard stores them and emails them to the consultant.
   saveStaffNotesBackup(lastSubmission.submission_id, lastSubmission, backupSaved, notes);
 
   document.getElementById('staffNotesPanel').style.display = 'none';

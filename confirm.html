@@ -332,11 +332,19 @@
 </div>
 
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzovDi5NHJwetKr9PX-gXeJOlvh0qrGLpqVXI5Xi0FHaC7jIt3BXcfe4xVYs1k2uLzjiA/exec';
+// The Ava dashboard holds the company and does the BOS work. The staging copy
+// the dashboard serves for testing sets window.CF_SUBMISSIONS_API to its own
+// address.
+const SUBMISSIONS_API_URL = window.CF_SUBMISSIONS_API ||
+  'https://ava-dashboard-production-choicesflooring.up.railway.app/submissions';
 let selectedPayment = null;
 let selectedType    = null;
 let customerToken   = null;
 let customerData    = null;
+
+function companyUrl(suffix) {
+  return SUBMISSIONS_API_URL + '/company/' + encodeURIComponent(customerToken) + (suffix || '');
+}
 
 window.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
@@ -344,30 +352,36 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (!customerToken) { showState('invalid'); return; }
   showState('loading');
   try {
-    const res  = await fetch(`${APPS_SCRIPT_URL}?action=getCustomer&token=${encodeURIComponent(customerToken)}`);
+    const res  = await fetch(companyUrl());
+    if (res.status === 404) { showState('invalid'); return; }
     const data = await res.json();
-    if (!data.success || !data.customer) { showState('invalid'); return; }
+    if (!data.success || !data.customer) { showError(data.message); return; }
     customerData = data.customer;
     renderSummary(customerData);
     if (customerData.mode === 'tc_update') showUpdateMode(customerData);
     showState('form');
   } catch(err) {
-    showState('invalid');
+    showError('Could not load the customer just now. Check your connection and refresh the page.');
   }
 });
+
+// Customer-typed text, made safe to put in the page.
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
 
 function renderSummary(p) {
   const grid = document.getElementById('summaryGrid');
   const isSame = p.shipping_same_as_billing === true || p.shipping_same_as_billing === 'true' || !p.ship_address1 || p.ship_address1 === p.bill_address1;
   const rows = [
-    ['Company', `<strong>${p.company_name}</strong>`],
-    ['Phone', p.phone],
-    ['Email', p.email],
-    p.abn ? ['ABN', p.abn] : null,
-    ['Consultant', p.salesperson],
+    ['Company', `<strong>${esc(p.company_name)}</strong>`],
+    ['Phone', esc(p.phone)],
+    ['Email', esc(p.email)],
+    p.abn ? ['ABN', esc(p.abn)] : null,
+    ['Consultant', esc(p.salesperson)],
     null,
-    ['Project', `${p.bill_address1}, ${p.bill_suburb} ${p.bill_state} ${p.bill_postcode}`],
-    ['Billing', isSame ? '<span style="color:var(--mid)">Same as project address</span>' : `${p.ship_address1}, ${p.ship_suburb} ${p.ship_state} ${p.ship_postcode}`],
+    ['Project', esc(`${p.bill_address1}, ${p.bill_suburb} ${p.bill_state} ${p.bill_postcode}`)],
+    ['Billing', isSame ? '<span style="color:var(--mid)">Same as project address</span>' : esc(`${p.ship_address1}, ${p.ship_suburb} ${p.ship_state} ${p.ship_postcode}`)],
   ].filter(Boolean);
   grid.innerHTML = rows.map(row => {
     if (row === null) return '<hr class="summary-divider">';
@@ -385,7 +399,7 @@ function showUpdateMode(p) {
   note.className = 'summary-card';
   note.innerHTML = '<div class="summary-title">Already in BOS</div><p style="margin:0;font-size:14px;line-height:1.6;color:var(--mid)">'
     + 'This company signed up at the Trade Centre counter and was created in BOS as <strong>'
-    + (p.payment_terms || 'COD') + '</strong> / <strong>' + (p.customer_type || 'Commercial - Non Account') + '</strong>. '
+    + esc(p.payment_terms || 'COD') + '</strong> / <strong>' + esc(p.customer_type || 'Commercial - Non Account') + '</strong>. '
     + 'Change the payment terms or customer type below if they should be different. Leaving them as they are changes nothing.</p>';
   const grid = document.getElementById('summaryGrid');
   grid.closest('.summary-card').insertAdjacentElement('afterend', note);
@@ -413,42 +427,67 @@ function select(group, value, btn) {
   btn.classList.add('selected');
 }
 
-function submitEntry() {
+async function submitEntry() {
   let valid = true;
   if (!selectedPayment) { document.getElementById('err-payment').classList.add('show'); valid = false; }
   if (!selectedType)    { document.getElementById('err-type').classList.add('show');    valid = false; }
   // Validate captcha
-  if (!grecaptcha.getResponse()) {
-    document.getElementById('captchaError').classList.add('show');
+  const captchaError = document.getElementById('captchaError');
+  captchaError.textContent = 'Please complete the security check to submit';
+  if (typeof grecaptcha === 'undefined' || !grecaptcha.getResponse()) {
+    captchaError.classList.add('show');
     valid = false;
   } else {
-    document.getElementById('captchaError').classList.remove('show');
+    captchaError.classList.remove('show');
   }
   if (!valid) return;
 
   const btn = document.getElementById('submitBtn');
+  const label = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Submitting…';
 
-  // Fire and forget — do NOT await. Show success immediately.
-  fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({
-      action:         'completeCompany',
-      token:          customerToken,
-      paymentTerms:   selectedPayment,
-      customerType:   selectedType,
-      recaptchaToken: grecaptcha.getResponse(),
-    }),
-  }).catch(() => {});
+  // Wait for the dashboard's answer, so a refused tick or a link already used
+  // is shown here instead of being lost. text/plain avoids a CORS preflight.
+  let res = null, data = {};
+  try {
+    res = await fetch(companyUrl('/complete'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        paymentTerms:   selectedPayment,
+        customerType:   selectedType,
+        recaptchaToken: grecaptcha.getResponse(),
+      }),
+    });
+    data = await res.json().catch(() => ({}));
+  } catch (err) { /* network: handled below */ }
 
-  const name = customerData ? customerData.company_name : 'Customer';
-  document.getElementById('successText').textContent = customerData && customerData.mode === 'tc_update'
-    ? `Sent — ${name} will be updated in BOS to ${selectedPayment} / ${selectedType}. You will get an email once BOS confirms.`
-    : `All done — ${name} has been submitted. They will receive a confirmation email once their account is ready in BOS.`;
-  showState('success');
+  if (res && res.ok && data.success) {
+    const name = customerData ? customerData.company_name : 'Customer';
+    document.getElementById('successText').textContent = customerData && customerData.mode === 'tc_update'
+      ? `Sent — ${name} will be updated in BOS to ${selectedPayment} / ${selectedType}. You will get an email once BOS confirms.`
+      : `All done — ${name} has been submitted. They will receive a confirmation email once their account is ready in BOS.`;
+    showState('success');
+    return;
+  }
+  if (res && (res.status === 404 || res.status === 409)) {   // the link was used meanwhile
+    showState('invalid');
+    return;
+  }
+  // A refused tick (400) or a choice BOS does not offer: stay on the page.
+  if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
+  captchaError.textContent = (data && data.message) ||
+    'Could not submit just now. Check your connection, tick the security check again and retry.';
+  captchaError.classList.add('show');
+  captchaError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  btn.disabled = false;
+  btn.textContent = label;
+}
+
+function showError(message) {
+  if (message) document.getElementById('errorText').textContent = message;
+  showState('error');
 }
 
 function showState(state) {
